@@ -3,7 +3,7 @@ import Combine
 import DeckCheckCore
 import DeckCheckSQLite
 
-/// The bundled read-only catalog snapshot (spec §2, §3.1). Loads `catalog.sqlite`
+/// The bundled read-only catalog snapshot. Loads `catalog.sqlite`
 /// from the app bundle and exposes it as the shared `CatalogLookup` + `CatalogSearching`
 /// the resolve / gap-check / search paths use. Absent snapshot → a clear status
 /// rather than a crash (build it with tools/build-catalog and add it to the target).

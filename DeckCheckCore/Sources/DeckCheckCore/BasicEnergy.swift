@@ -1,6 +1,6 @@
 import Foundation
 
-/// Basic energy is never tracked (spec §4.5): decklist basic-energy lines
+/// Basic energy is never tracked: decklist basic-energy lines
 /// auto-satisfy. This detects them by name so they never need a catalog match
 /// (TCG Live writes them as e.g. "Basic Fire Energy SVI 230", but the set/number
 /// is irrelevant — any basic Fire is interchangeable).

@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-/// The durable, visible outbox (spec §5.4). Every confirmed card is written here the
+/// The durable, visible outbox. Every confirmed card is written here the
 /// instant it's confirmed, before it counts as entered; entries survive
 /// app-close/crash and leave only once the Sheet write is acknowledged.
 @MainActor
@@ -36,7 +36,7 @@ final class Outbox: ObservableObject {
     /// Flush pending ops via the active backend (`apply` returns the acked op ids);
     /// drop acknowledged entries. Failures stay queued for the next flush. The
     /// backend is injected as a closure so this works against either the v1 Apps
-    /// Script client or the v2 direct Sheets API (§5).
+    /// Script client or the v2 direct Sheets API.
     func flush(apply: ([OutboxOp]) async throws -> Set<String>) async {
         guard !pending.isEmpty, !isFlushing else { return }
         isFlushing = true

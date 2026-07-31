@@ -23,14 +23,14 @@ final class OAuthTests: XCTestCase {
         XCTAssertNotEqual(PKCE.generate().verifier, PKCE.generate().verifier) // random
     }
 
-    // ── config / scopes (the §8.2 guardrail) ─────────────────────────────────
+    // ── config / scopes (the guardrail) ─────────────────────────────────
 
     func testRequiredScopesAreSpreadsheetsAndDriveFileOnly() {
         XCTAssertEqual(OAuthConfig.requiredScopes, [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive.file",
         ])
-        // Never the restricted `drive` scope — that would trigger a CASA audit (§8.2).
+        // Never the restricted `drive` scope — that would trigger a CASA audit.
         XCTAssertFalse(OAuthConfig.requiredScopes.contains("https://www.googleapis.com/auth/drive"))
     }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 import DeckCheckCore
 
-/// Cards (spec §7.3 + #24): one browse/search surface with an **Owned / All** scope.
+/// Cards: one browse/search surface with an **Owned / All** scope.
 /// Owned (default) lists your collection from the read-cache, offline. All searches
 /// the whole catalog by name, showing owned count incl. 0. Both are equivalence-grouped.
 struct CardsView: View {
@@ -17,7 +17,7 @@ struct CardsView: View {
     @State private var addingPromo = false
 
     /// Show only Standard-legal cards. Off by default → your whole collection shows.
-    /// Persisted and shared with the equivalent-card picker (§4.4).
+    /// Persisted and shared with the equivalent-card picker.
     @AppStorage("standardOnly") private var standardOnly = false
     /// Show only cards with a free (unreserved) copy — owned minus what decks use.
     @AppStorage("freeOnly") private var freeOnly = false
@@ -86,7 +86,7 @@ struct CardsView: View {
     }
 
     /// Record a hand-entered promo straight from the inventory browser — no scan
-    /// needed. Intake goes through the durable outbox like a batch commit (§5.4), then
+    /// needed. Intake goes through the durable outbox like a batch commit, then
     /// syncs; the new row lands in the Owned list on the next refresh.
     private func commitPromo(_ card: CatalogCard) {
         outbox.enqueue(OutboxOp(
@@ -162,7 +162,7 @@ struct CardsView: View {
             return img
         }
         // Manual promo (or an imageless printing): borrow the equivalent card's art via
-        // the functional group (#50).
+        // the functional group.
         return catalog.lookup?.cards(equivalenceKey: item.id).lazy.compactMap(\.imageSmall).first
     }
 
@@ -178,7 +178,7 @@ struct CardsView: View {
             byKey[row.equivalence_key, default: []].append(row)
         }
         return order.map { key -> CardListItem in
-            // Newest printing first (#53); the sheet cache has no release date, so pull
+            // Newest printing first; the sheet cache has no release date, so pull
             // it from the catalog per printing. Rows the catalog can't place (manual
             // promos) fall back to set/number ordering behind the dated ones.
             let printings = byKey[key]!.sorted { a, b in
@@ -192,7 +192,7 @@ struct CardsView: View {
                 name: printings.first?.name ?? "—",
                 ownedCount: printings.reduce(0) { $0 + $1.qty },
                 ownedPrintings: printings.map {
-                    // A linked promo reads as its equivalent card's designation (#50):
+                    // A linked promo reads as its equivalent card's designation:
                     // "MEP 075" shows as "CRI 029/086". Unlinked promos keep their own.
                     let designation = linkedDesignation($0) ?? "\($0.set.isEmpty ? $0.code : $0.set) \($0.number)"
                     var label = "\(designation) ×\($0.qty)"
@@ -233,7 +233,7 @@ struct CardsView: View {
 
     /// An owned group passes the filter if any owned printing is legal in the format.
     /// A promo's own `manual:` id isn't in the catalog, so judge it by its linked
-    /// equivalent card(s) (the group key) instead of dropping it (#50 linkage).
+    /// equivalent card(s) (the group key) instead of dropping it.
     private func ownedGroupIsLegal(_ item: CardListItem) -> Bool {
         guard let fmt = legalityFormat else { return true }
         func legal(_ c: CatalogCard) -> Bool { fmt == .standard ? c.standardLegal : c.expandedLegal }

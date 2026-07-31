@@ -19,7 +19,7 @@ struct SettingsView: View {
                         Label("Inventory Sheet", systemImage: "tablecells")
                     }
                 } footer: {
-                    Text("Connect the Google Sheet that stores your inventory — sign in with Google; the app sets up your Sheet (spec §5, §8.2).")
+                    Text("Connect the Google Sheet that stores your inventory — sign in with Google; the app sets up your Sheet.")
                 }
 
                 Section("Status") {

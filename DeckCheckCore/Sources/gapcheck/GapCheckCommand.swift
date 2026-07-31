@@ -2,7 +2,7 @@ import Foundation
 import DeckCheckCore
 import DeckCheckSQLite
 
-// The default subcommand: gap-check a decklist (spec §7.4).
+// The default subcommand: gap-check a decklist.
 
 struct GapOptions {
     var catalog = "catalog.sqlite"
@@ -13,7 +13,7 @@ struct GapOptions {
 }
 
 let gapUsage = """
-gapcheck — decklist gap-check against a catalog + your inventory (spec §7.4)
+gapcheck — decklist gap-check against a catalog + your inventory
 
 USAGE:
   swift run gapcheck [--catalog <catalog.sqlite>] [--deck <file>] [--inventory <file>]
@@ -27,7 +27,7 @@ OPTIONS:
   --format <fmt>      legality lens: standard | expanded (off by default)
   --buylist           also print a one-paste TCGplayer Mass Entry buy list
 
-(Run `gapcheck search --help` for catalog search, spec §7.3.)
+(Run `gapcheck search --help` for catalog search)
 """
 
 func parseGapOptions(_ argv: [String]) throws -> GapOptions {

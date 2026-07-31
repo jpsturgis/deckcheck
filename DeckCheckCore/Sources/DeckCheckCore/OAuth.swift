@@ -2,7 +2,7 @@ import Foundation
 import CryptoKit
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Google OAuth onboarding core (spec v2 §8.2). The pure, testable half of "Sign in
+// Google OAuth onboarding core. The pure, testable half of "Sign in
 // with Google, we set up your Sheet": PKCE, the authorization URL, the token-
 // exchange / refresh request specs, and token-lifecycle parsing. The device shell
 // (ASWebAuthenticationSession to present the auth URL, URLSession to POST the token
@@ -10,11 +10,11 @@ import CryptoKit
 // the values built here — so the security-critical string/crypto logic is unit-
 // tested off-device.
 //
-// v2 uses a PER-USER OAuth client (§8.2): each user makes their own Google Cloud
+// v2 uses a PER-USER OAuth client: each user makes their own Google Cloud
 // project + iOS OAuth client in "testing" mode with themselves as the sole test
 // user, so an unverified client needs NO Google verification. An iOS client is a
 // PUBLIC client — no client secret — so auth rests on PKCE. Scopes are exactly
-// `spreadsheets` + `drive.file`; NEVER the restricted `drive` scope (§8.2 — that's
+// `spreadsheets` + `drive.file`; NEVER the restricted `drive` scope (that's
 // what would trigger a CASA audit).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -35,14 +35,14 @@ public struct HTTPRequestSpec: Equatable {
     public var bodyString: String? { body.flatMap { String(data: $0, encoding: .utf8) } }
 }
 
-/// The per-user OAuth client configuration (§8.2). No secret — an iOS client is a
+/// The per-user OAuth client configuration. No secret — an iOS client is a
 /// public, PKCE-based client.
 public struct OAuthConfig: Equatable {
     public let clientId: String
     public let redirectURI: String
     public let scopes: [String]
 
-    /// The only scopes v2 requests at onboarding (§8.2). `drive.file` = just the files
+    /// The only scopes v2 requests at onboarding. `drive.file` = just the files
     /// this app creates/opens; `spreadsheets` = read/write those sheets. No broad `drive`.
     public static let requiredScopes = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -50,7 +50,7 @@ public struct OAuthConfig: Equatable {
     ]
 
     /// Extra scope requested ONLY when the user opts into in-browser/app-closed
-    /// gap-check (spec §7.4 PART 2). It lets the app create + push a container-bound
+    /// gap-check. It lets the app create + push a container-bound
     /// Apps Script into the user's own sheet via the Apps Script API. Off by default;
     /// granted incrementally (a fresh consent showing the added permission) when the
     /// feature is turned on, never at first onboarding.

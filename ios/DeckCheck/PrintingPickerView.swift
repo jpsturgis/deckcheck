@@ -1,7 +1,7 @@
 import SwiftUI
 import DeckCheckCore
 
-/// Correction picker (spec §7.1): when the scan is wrong or uncertain, search by name
+/// Correction picker: when the scan is wrong or uncertain, search by name
 /// and pick the exact printing by eye (images disambiguate reprints/alt-arts). Returns
 /// the chosen `CatalogCard`. The search field auto-focuses so the keyboard is up the
 /// moment it opens — no extra tap to start typing.
@@ -84,7 +84,7 @@ struct PrintingPickerView: View {
         }
     }
 
-    /// Escape hatch for promos the catalog can't list (§ promo entry path): brand-new
+    /// Escape hatch for promos the catalog can't list: brand-new
     /// promo sets (Mega Evolution Promos / MEP, …) lag the source, so no name search
     /// will find them. Enter the printed name + set code + number by hand instead.
     private var manualEntrySection: some View {

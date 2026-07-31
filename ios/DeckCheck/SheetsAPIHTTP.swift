@@ -1,7 +1,7 @@
 import Foundation
 import DeckCheckCore
 
-// The device shell for the v2 Sheets/OAuth layer (spec §5, §8.2): a thin URLSession
+// The device shell for the v2 Sheets/OAuth layer: a thin URLSession
 // executor for the pure `HTTPRequestSpec`s built in DeckCheckCore (GoogleOAuth /
 // GoogleSheets). All the request/response *logic* is tested in the core; this just
 // fires the bytes and surfaces HTTP errors with the server's body for debugging.

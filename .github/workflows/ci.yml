@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  core-tests:
+    name: Core tests (swift test)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test
+        working-directory: DeckCheckCore
+        run: swift test
+
+  app-build:
+    name: App compiles (xcodebuild)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: xcodebuild build (signing off)
+        run: >
+          xcodebuild
+          -project ios/DeckCheck.xcodeproj
+          -scheme DeckCheck
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO
+          build

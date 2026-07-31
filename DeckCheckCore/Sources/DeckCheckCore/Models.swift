@@ -1,6 +1,6 @@
 import Foundation
 
-// Value types shared across the query-core (spec §4, §5, §7.4).
+// Value types shared across the query-core.
 
 /// Card supertype. Only what the query-core needs; the catalog carries the rest.
 public enum Supertype: String, Equatable {
@@ -10,26 +10,26 @@ public enum Supertype: String, Equatable {
     case unknown
 }
 
-/// A row of the bundled catalog snapshot (spec §3.1) — the subset the query-core
-/// reads. `equivalenceKey` is precomputed at prep time (spec §4.3); the core never
+/// A row of the bundled catalog snapshot — the subset the query-core
+/// reads. `equivalenceKey` is precomputed at prep time; the core never
 /// hashes, it groups by this key.
 public struct CatalogCard: Equatable {
-    public let cardId: String          // "ptcg:sv8-4" — stable identity (§5.1)
+    public let cardId: String          // "ptcg:sv8-4" — stable identity
     public let setId: String
     public let setName: String
-    public let ptcgoCode: String?      // TCG Live set code — nullable (§3.2)
-    public let number: String          // collector number, no leading zeros (§3.2)
+    public let ptcgoCode: String?      // TCG Live set code — nullable
+    public let number: String          // collector number, no leading zeros
     public let name: String
     public let supertype: Supertype
-    public let equivalenceKey: String  // functional-equivalence group (§4)
-    public let standardLegal: Bool     // per-printing legality overlay (§4.4)
+    public let equivalenceKey: String  // functional-equivalence group
+    public let standardLegal: Bool     // per-printing legality overlay
     public let expandedLegal: Bool
     public let regulationMark: String?
-    public let printedTotal: Int?      // the set's printed total — the "/191" set-pin (§3.2)
-    public let imageSmall: String?     // thumbnail URL, for the correction picker (§7.1)
-    public let imageLarge: String?     // full card image URL, for the detail view (#29)
-    public let releaseDate: String?    // the set's release date, "YYYY/MM/DD" — sorts printings newest-first (#53)
-    public let hp: String?             // HP, e.g. "160" — a recognizer disambiguator (§6); nil for Trainer/Energy
+    public let printedTotal: Int?      // the set's printed total — the "/191" set-pin
+    public let imageSmall: String?     // thumbnail URL, for the correction picker
+    public let imageLarge: String?     // full card image URL, for the detail view
+    public let releaseDate: String?    // the set's release date, "YYYY/MM/DD" — sorts printings newest-first
+    public let hp: String?             // HP, e.g. "160" — a recognizer disambiguator; nil for Trainer/Energy
 
     public init(cardId: String, setId: String, setName: String, ptcgoCode: String?,
                 number: String, name: String, supertype: Supertype, equivalenceKey: String,
@@ -48,7 +48,7 @@ public struct CatalogCard: Equatable {
 }
 
 public extension Sequence where Element == CatalogCard {
-    /// Printings ordered by set release date, newest first (#53) — surfaces the current
+    /// Printings ordered by set release date, newest first — surfaces the current
     /// printing ahead of older reprints. `release_date` is "YYYY/MM/DD", so a plain
     /// string compare is chronological; printings whose set carries no date sort last,
     /// with collector number as a stable tiebreak within a single release.
@@ -61,7 +61,7 @@ public extension Sequence where Element == CatalogCard {
     }
 }
 
-/// An owned printing, as it comes from the inventory Sheet (§5.1): the machine
+/// An owned printing, as it comes from the inventory Sheet: the machine
 /// columns the diff needs. `equivalenceKey` is denormalized in the Sheet;
 /// per-printing legality is looked up from the catalog by `cardId` when needed.
 public struct OwnedCard: Equatable {
@@ -74,7 +74,7 @@ public struct OwnedCard: Equatable {
     }
 }
 
-/// One parsed decklist line (spec §7.4 input). `setCode`/`number` are nil when the
+/// One parsed decklist line. `setCode`/`number` are nil when the
 /// line is bare (e.g. a basic-energy line, or a name-only paste).
 public struct ParsedLine: Equatable {
     public let quantity: Int
@@ -92,8 +92,8 @@ public struct ParsedLine: Equatable {
 /// How a decklist line resolved against the catalog.
 public enum LineResolution: Equatable {
     case resolved(CatalogCard)         // a unique functional printing (one equivalence_key)
-    case basicEnergy(name: String)     // auto-satisfied — basic energy isn't tracked (§4.5)
-    case unidentified(reason: String)  // bucketed for manual attention, excluded from buildable (§7.4)
+    case basicEnergy(name: String)     // auto-satisfied — basic energy isn't tracked
+    case unidentified(reason: String)  // bucketed for manual attention, excluded from buildable
 }
 
 public struct ResolvedLine: Equatable {
@@ -106,7 +106,7 @@ public struct ResolvedLine: Equatable {
     }
 }
 
-/// Optional legality lens (spec §4.4, §7.4) — off by default, user-selected.
+/// Optional legality lens — off by default, user-selected.
 public enum LegalityFormat: String, Equatable {
     case standard, expanded
 }
@@ -126,7 +126,7 @@ public struct GapEntry: Equatable {
     public let ownedQty: Int
     public let shortQty: Int
     public let status: CardStatus
-    /// You own the functional card but via a *different printing* than the deck lists (§7.4 "🔁").
+    /// You own the functional card but via a *different printing* than the deck lists.
     public let differentPrinting: Bool
     /// Legality lens on: you own a functional copy but none of your printings are legal in the format.
     public let ownedNoLegalPrinting: Bool
@@ -143,7 +143,7 @@ public struct GapEntry: Equatable {
     }
 }
 
-/// The gap-first report (spec §7.4).
+/// The gap-first report.
 public struct GapReport: Equatable {
     public let entries: [GapEntry]        // identified non-energy cards, sorted missing→short→have
     public let unidentified: [ParsedLine] // ❓ couldn't identify — excluded from buildable

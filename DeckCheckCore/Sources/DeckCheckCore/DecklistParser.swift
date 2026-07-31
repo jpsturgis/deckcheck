@@ -1,6 +1,6 @@
 import Foundation
 
-/// Tolerant decklist parser (spec §7.4). Keyed on the `<qty> <Name> <SETCODE> <Number>`
+/// Tolerant decklist parser. Keyed on the `<qty> <Name> <SETCODE> <Number>`
 /// line shape used by Pokémon TCG Live "copy list" and Limitless exports. Section
 /// headers ("Pokémon: 6", "Total Cards: 60") are hints, not required — any line that
 /// doesn't start with a quantity is skipped.

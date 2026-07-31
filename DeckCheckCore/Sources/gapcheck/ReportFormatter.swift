@@ -1,7 +1,7 @@
 import Foundation
 import DeckCheckCore
 
-/// Renders a GapReport as a gap-first terminal report (spec §7.4).
+/// Renders a GapReport as a gap-first terminal report.
 enum ReportFormatter {
     static func format(_ r: GapReport, showBuylist: Bool) -> String {
         var out: [String] = []

@@ -1,7 +1,7 @@
 import Foundation
 import DeckCheckCore
 
-/// Renders search results (spec §7.3): owned first, count including 0, owned
+/// Renders search results: owned first, count including 0, owned
 /// printings expandable inline.
 enum SearchFormatter {
     static func format(_ groups: [SearchResultGroup], query: String, lens: LegalityFormat?) -> String {

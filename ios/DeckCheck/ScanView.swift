@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import DeckCheckCore
 
-/// Batch scan (spec §7.1–7.2): capture cards into a batch, review them (newest scan on
+/// Batch scan: capture cards into a batch, review them (newest scan on
 /// top), correct any via the name-search picker, then on each row dial the copy count
 /// and **Add** or **Remove** it — no separate mode.
 /// **Add all** commits every identified card at once. Everything flows through the
@@ -27,14 +27,14 @@ struct ScanView: View {
     private var ordered: [BatchItem] { Array(batch.reversed()) }
 
     /// Which owned printing a Remove would decrement (exact, else a functional
-    /// equivalent, §7.2); nil = you own none, so Remove is disabled.
+    /// equivalent); nil = you own none, so Remove is disabled.
     private func removalTarget(for item: BatchItem) -> (row: InventoryRow, exact: Bool)? {
         guard let c = item.chosen else { return nil }
         return inventory.removalTarget(cardId: c.cardId, equivalenceKey: c.equivalenceKey)
     }
 
     /// Heads-up when a Remove would decrement a *different* printing than the one
-    /// scanned (you own an equivalent, not this exact card — §7.2 "🔁").
+    /// scanned (you own an equivalent, not this exact card "🔁").
     private func removalNote(for item: BatchItem) -> String? {
         guard item.identified, let t = removalTarget(for: item), !t.exact else { return nil }
         let label = t.row.set.isEmpty ? t.row.code : t.row.set
@@ -225,7 +225,7 @@ struct ScanView: View {
         Task { await model.syncNow() }
     }
 
-    /// Remove this card's copies from inventory (§7.2: the exact printing if owned,
+    /// Remove this card's copies from inventory (the exact printing if owned,
     /// else a functional equivalent) and drop the row.
     private func remove(_ item: BatchItem) {
         guard let t = removalTarget(for: item) else { return }
@@ -244,7 +244,7 @@ struct ScanView: View {
         Task { await model.syncNow() }
     }
 
-    /// One op per copy — the backend applies ±1 each and nets the batch (§5.3).
+    /// One op per copy — the backend applies ±1 each and nets the batch.
     private func enqueueCopies(_ item: BatchItem, op: OutboxOp.Kind, targetCardId: String) {
         guard let card = item.chosen else { return }
         let copies = max(1, currentQty(item))

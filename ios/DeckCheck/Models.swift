@@ -1,11 +1,11 @@
 import Foundation
 import DeckCheckCore
 
-// Value types for the Google Sheet ↔ app boundary (spec §5): the read-cache row
+// Value types for the Google Sheet ↔ app boundary: the read-cache row
 // (InventoryRow) and a pending outbox mutation (OutboxOp). The Sheets API read is
 // mapped into these in GoogleSheetsService.
 
-/// One inventory row as the Sheet stores it (§5.1) — the local read-cache element.
+/// One inventory row as the Sheet stores it — the local read-cache element.
 ///
 /// Google Sheets silently stores numeric-looking cells as *numbers*, so `doGet` can
 /// return `number`, `code`, etc. as JSON numbers rather than strings. Decoding is
@@ -29,7 +29,7 @@ struct InventoryRow: Codable, Identifiable, Equatable {
     }
 
     /// Memberwise init (the custom `init(from:)` suppresses the synthesized one) —
-    /// used to build read-cache rows from the v2 Sheets `SheetTable` (§5.3).
+    /// used to build read-cache rows from the v2 Sheets `SheetTable`.
     init(card_id: String, name: String, set: String, code: String, number: String,
          qty: Int, location: String, equivalence_key: String, norm_version: String) {
         self.card_id = card_id; self.name = name; self.set = set; self.code = code
@@ -69,7 +69,7 @@ struct InventoryRow: Codable, Identifiable, Equatable {
     }
 }
 
-/// A pending mutation in the durable outbox (§5.4), also the doPost op shape.
+/// A pending mutation in the durable outbox, also the doPost op shape.
 /// `id` is a client-generated id echoed in the doPost result so an entry leaves the
 /// outbox only once its write is acknowledged.
 struct OutboxOp: Codable, Identifiable, Equatable {
@@ -87,7 +87,7 @@ struct OutboxOp: Codable, Identifiable, Equatable {
 }
 
 extension Array where Element == InventoryRow {
-    /// Map the read-cache to the engines' owned-copy view (spec §4/§7).
+    /// Map the read-cache to the engines' owned-copy view.
     var ownedCards: [OwnedCard] {
         map { OwnedCard(cardId: $0.card_id, equivalenceKey: $0.equivalence_key, qty: $0.qty) }
     }

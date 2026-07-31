@@ -1,6 +1,6 @@
 import Foundation
 
-/// Multi-term catalog search matching (spec §7.3, extended). The query is split into
+/// Multi-term catalog search matching. The query is split into
 /// whitespace tokens, and a card matches only when **every** token is a case-insensitive
 /// substring of at least one of its fields: card **name**, **set name**, **set code**,
 /// collector **number**, or **number/printedTotal**. So the terms are optional and

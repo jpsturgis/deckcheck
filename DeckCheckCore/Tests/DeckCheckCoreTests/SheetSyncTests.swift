@@ -78,7 +78,7 @@ final class SheetSyncTests: XCTestCase {
                        ["Charizard ex", "Obsidian Flames", "", "125", "4", "", "sv3-125", "char", "v1"])
     }
 
-    // ── planner: the §5.2 core ──────────────────────────────────────────────
+    // ── planner: the core ──────────────────────────────────────────────
 
     func testIntakeOfOwnedPrintingIncrements() {
         let t = SheetTable.parse(values: grid)!

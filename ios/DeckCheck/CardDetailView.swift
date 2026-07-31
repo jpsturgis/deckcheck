@@ -1,7 +1,7 @@
 import SwiftUI
 import DeckCheckCore
 
-/// Card detail (#29): the full card image plus its info, your owned copies, and every
+/// Card detail: the full card image plus its info, your owned copies, and every
 /// printing in the functional-equivalence group (owned marked). Read-only.
 struct CardDetailView: View {
     let cardId: String
@@ -16,11 +16,11 @@ struct CardDetailView: View {
     private var card: CatalogCard? { catalog.lookup?.card(byId: cardId) }
     private var printings: [CatalogCard] {
         guard let key = card?.equivalenceKey else { return [] }
-        return (catalog.lookup?.cards(equivalenceKey: key) ?? []).orderedNewestFirst()  // newest first (#53)
+        return (catalog.lookup?.cards(equivalenceKey: key) ?? []).orderedNewestFirst()  // newest first
     }
 
-    /// Owned rows for a card the catalog doesn't carry — a hand-entered promo (§ promo
-    /// entry path), whose `manual:` id resolves nowhere in the snapshot.
+    /// Owned rows for a card the catalog doesn't carry — a hand-entered promo,
+    /// whose `manual:` id resolves nowhere in the snapshot.
     private var manualRows: [InventoryRow] {
         inventory.rows.filter { ($0.card_id == cardId || $0.equivalence_key == cardId) && $0.qty > 0 }
     }
@@ -108,7 +108,7 @@ struct CardDetailView: View {
         }
     }
 
-    /// Link (or change) the catalog card this promo *plays as* (#48), after the fact.
+    /// Link (or change) the catalog card this promo *plays as*, after the fact.
     /// Shows the current link, or a button to set one.
     @ViewBuilder private func playsAsSection(_ row: InventoryRow) -> some View {
         let linked = catalog.lookup?.cards(equivalenceKey: row.equivalence_key).orderedNewestFirst().first
@@ -135,7 +135,7 @@ struct CardDetailView: View {
 
     /// Re-key an existing promo to the card it plays as: remove the old rows and append
     /// them under the linked id + key. Old and new ids differ (ManualEntry folds the key
-    /// in), so both ride one outbox batch without netting (§5.3). Pops back to the list
+    /// in), so both ride one outbox batch without netting. Pops back to the list
     /// afterward since this card's id has changed.
     private func relink(_ rows: [InventoryRow], to card: CatalogCard) {
         guard let newCard = ManualEntry.promoCard(name: rows[0].name, code: rows[0].code,
@@ -176,7 +176,7 @@ struct CardDetailView: View {
     /// Convert a real catalog card you own into a promo linked to `target`: remove the
     /// real rows and re-add them as a `manual:` promo that adopts the target's
     /// equivalence group (so they count together). Same remove-old + append-new outbox
-    /// pattern as `relink`, and the new id differs, so both ride one batch (§5.3).
+    /// pattern as `relink`, and the new id differs, so both ride one batch.
     private func relinkReal(_ card: CatalogCard, to target: CatalogCard) {
         guard target.equivalenceKey != card.equivalenceKey else { return } // already same group
         let rows = inventory.rows.filter { $0.card_id == card.cardId && $0.qty > 0 }
@@ -232,7 +232,7 @@ struct CardDetailView: View {
         .frame(maxHeight: 440)
     }
 
-    /// Hero for a hand-entered promo: its linked card's art (#50) with a PROMO badge,
+    /// Hero for a hand-entered promo: its linked card's art with a PROMO badge,
     /// or the placeholder when the promo isn't linked to a catalog card.
     @ViewBuilder private func promoHero(imageURL: String?) -> some View {
         Group {
@@ -253,7 +253,7 @@ struct CardDetailView: View {
         .overlay(alignment: .bottomTrailing) { PromoBadge().padding(10) }
     }
 
-    /// The art of the catalog card this promo *plays as* (#48 link), if any (#50).
+    /// The art of the catalog card this promo *plays as*, if any.
     private func linkedImage(forKey key: String) -> String? {
         catalog.lookup?.cards(equivalenceKey: key).lazy.compactMap { $0.imageLarge ?? $0.imageSmall }.first
     }
@@ -300,7 +300,7 @@ struct CardDetailView: View {
 
     /// Adjust how many of *this printing* you own, right from the detail. Each tap
     /// enqueues one intake (+) or removal (−) op to the durable outbox, then syncs
-    /// (§5.4). The count is optimistic — inventory qty plus the not-yet-synced outbox
+    /// The count is optimistic — inventory qty plus the not-yet-synced outbox
     /// delta — so it moves the instant you tap, then reconciles when the sync lands.
     private func copiesStepper(cardId: String, name: String, set: String,
                                code: String, number: String, equivalenceKey: String) -> some View {

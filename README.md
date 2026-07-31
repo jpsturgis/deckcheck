@@ -6,6 +6,10 @@
 
 <p align="center"><em>Track your Pokémon TCG collection on your phone, and know exactly what you're missing to build a deck — backed by a Google Sheet you own.</em></p>
 
+<p align="center">
+  <a href="https://github.com/jpsturgis/deckcheck/actions/workflows/ci.yml"><img src="https://github.com/jpsturgis/deckcheck/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
+
 ## What it solves
 
 - **"Do I already own this card?"** — search your whole collection from your phone in seconds.

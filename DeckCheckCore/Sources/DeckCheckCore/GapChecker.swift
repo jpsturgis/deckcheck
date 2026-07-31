@@ -1,6 +1,6 @@
 import Foundation
 
-/// The gap-check engine (spec §7.4): parse → resolve → diff → gap-first report.
+/// The gap-check engine: parse → resolve → diff → gap-first report.
 /// Functional ownership is the satisfaction criterion — a different printing that
 /// hashes to the same equivalence key counts as owned (annotated).
 public enum GapChecker {

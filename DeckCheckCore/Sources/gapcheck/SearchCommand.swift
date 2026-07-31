@@ -3,7 +3,7 @@ import DeckCheckCore
 import DeckCheckSQLite
 
 // The `search` subcommand: catalog-wide, name-based, equivalence-grouped, owned
-// count including 0 (spec §7.3).
+// count including 0.
 
 struct SearchOptions {
     var catalog = "catalog.sqlite"
@@ -15,7 +15,7 @@ struct SearchOptions {
 }
 
 let searchUsage = """
-gapcheck search — catalog search, grouped by functional equivalence (spec §7.3)
+gapcheck search — catalog search, grouped by functional equivalence
 
 USAGE:
   swift run gapcheck search [--catalog <catalog.sqlite>] --query <text>

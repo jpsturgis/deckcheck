@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Marks a hand-entered promo that's showing its *linked* card's image (#50): the art
+/// Marks a hand-entered promo that's showing its *linked* card's image: the art
 /// is the equivalent printing's, so the star badge flags "this is the promo version."
 struct PromoBadge: View {
     var compact = false

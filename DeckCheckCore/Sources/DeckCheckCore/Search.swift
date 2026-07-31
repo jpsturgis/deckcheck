@@ -1,10 +1,10 @@
 import Foundation
 
-// Inventory search (spec §7.3): catalog-wide, by card name, equivalence-grouped,
+// Inventory search: catalog-wide, by card name, equivalence-grouped,
 // read-only. Each result shows the owned count **including 0** (any printing) plus
 // the specific owned printings, with an optional off-by-default legality lens. Owned
 // cards surface first. Shares the CatalogLookup catalog + equivalence grouping with
-// the §7.4 gap-check.
+// the gap-check.
 
 /// Catalog name-search surface. Separate from `CatalogLookup` so a backend needn't
 /// implement search unless it offers it (the SQLite snapshot does; the app reuses it).
@@ -24,7 +24,7 @@ public struct OwnedPrinting: Equatable {
     public init(card: CatalogCard, qty: Int) { self.card = card; self.qty = qty }
 }
 
-/// One functional-equivalence group in the search results (spec §7.3).
+/// One functional-equivalence group in the search results.
 public struct SearchResultGroup: Equatable {
     public let name: String
     public let equivalenceKey: String
@@ -81,7 +81,7 @@ public enum SearchService {
 
         var groups: [SearchResultGroup] = []
         for key in keyOrder {
-            // Newest printing first (#53) so the representative is the current one.
+            // Newest printing first so the representative is the current one.
             guard let printings = byKey[key]?.orderedNewestFirst(), let rep = printings.first else { continue }
             let ownedPrintings = printings.compactMap { p -> OwnedPrinting? in
                 guard let n = ownedQtyById[p.cardId], n > 0 else { return nil }
@@ -92,13 +92,13 @@ public enum SearchService {
             }
             groups.append(SearchResultGroup(
                 name: rep.name, equivalenceKey: key,
-                ownedCount: ownedQtyByKey[key] ?? 0,   // functional-group total (§7.3 "any printing")
+                ownedCount: ownedQtyByKey[key] ?? 0,   // functional-group total
                 printings: printings, ownedPrintings: ownedPrintings,
                 formatLegal: formatLegal, representative: rep))
         }
 
         // owned first, then the requested order. `representative` is the group's newest
-        // printing (#53), so its release date orders the groups newest-first; undated
+        // printing, so its release date orders the groups newest-first; undated
         // groups sort last, name breaks ties.
         groups.sort { a, b in
             if (a.ownedCount > 0) != (b.ownedCount > 0) { return a.ownedCount > 0 }

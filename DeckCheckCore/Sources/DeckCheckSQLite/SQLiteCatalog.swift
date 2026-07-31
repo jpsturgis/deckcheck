@@ -3,7 +3,7 @@ import SQLite3
 import DeckCheckCore
 
 /// A `CatalogLookup` backed by the bundled read-only SQLite snapshot built by
-/// `tools/build-catalog` (spec §3.1). Read-only; safe to share. The SwiftUI app can reuse
+/// `tools/build-catalog`. Read-only; safe to share. The SwiftUI app can reuse
 /// this verbatim over the app-bundled snapshot; the `gapcheck` CLI uses it over a
 /// file path.
 public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
@@ -49,7 +49,7 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
     }
 
     public func cards(equivalenceKey: String) -> [CatalogCard] {
-        // Newest printing first (#53): most-recent set release, then collector number.
+        // Newest printing first: most-recent set release, then collector number.
         query("c.equivalence_key = ?1 ORDER BY s.release_date DESC, c.number", [equivalenceKey])
     }
 
@@ -89,7 +89,7 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
     // MARK: Full enumeration
 
     /// Every card in the snapshot — used to push the slim resolution index into the
-    /// user's sheet for in-browser gap-check (spec §7.4 PART 2). One-shot on
+    /// user's sheet for in-browser gap-check. One-shot on
     /// enable/refresh, not a hot path; feed the result to `CatalogIndexExport`.
     public func allCards() -> [CatalogCard] {
         var stmt: OpaquePointer?
@@ -103,7 +103,7 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
     // MARK: - SQL
 
     // `hp` lives inside the per-card `attributes` JSON (no dedicated column) — pull just
-    // that scalar out with json_extract so the recognizer can use it (§6) without
+    // that scalar out with json_extract so the recognizer can use it without
     // transferring the whole blob or a catalog rebuild.
     private static let selectPrefix = """
     SELECT c.card_id, c.set_id, s.name, s.ptcgo_code, c.number, c.name, c.supertype,

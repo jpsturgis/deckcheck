@@ -2,7 +2,7 @@ import Foundation
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The slim catalog "resolution index" for in-browser/app-closed gap-check
-// (spec §7.4 PART 2). When the user opts in, the app pushes this narrow table into
+// When the user opts in, the app pushes this narrow table into
 // a hidden `Catalog` tab in *their own* sheet so a container-bound Apps Script can
 // resolve decklist lines with the app closed. It is a resolution index, NOT the
 // catalog: only the seven columns the gap-check engine reads (gapcheck.gs

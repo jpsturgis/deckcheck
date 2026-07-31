@@ -272,7 +272,7 @@ final class GoogleSheetsTests: XCTestCase {
         XCTAssertEqual(starts, [2, 1]) // row 3 then row 2 → indexes 2, 1
     }
 
-    // ── Catalog resolution index (in-browser gap-check, §7.4 PART 2) ────────────
+    // ── Catalog resolution index (in-browser gap-check) ────────────
 
     func testParseAddedSheetId() throws {
         let data = Data(#"{"replies":[{"addSheet":{"properties":{"sheetId":555,"title":"Catalog"}}}]}"#.utf8)

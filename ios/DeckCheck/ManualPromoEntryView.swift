@@ -1,7 +1,7 @@
 import SwiftUI
 import DeckCheckCore
 
-/// Hand-enter a promo the catalog doesn't carry (§ promo entry path). Promos print
+/// Hand-enter a promo the catalog doesn't carry. Promos print
 /// their own code + number by a black star (e.g. "MEP EN 075") with no "/total", and
 /// new promo sets lag the pokemontcg.io source — so this records name + set code +
 /// number directly. It hands back a synthesized `CatalogCard` (via `ManualEntry`) so
@@ -9,7 +9,7 @@ import DeckCheckCore
 /// printing. Reused from the scan correction picker (into a batch) and from the Cards
 /// tab (committed straight to the outbox).
 ///
-/// Optionally link the catalog card the promo *plays as* (#48): the promo adopts that
+/// Optionally link the catalog card the promo *plays as*: the promo adopts that
 /// card's functional-equivalence group, so it counts as a copy in the gap-check.
 struct ManualPromoEntryView: View {
     let onSave: (CatalogCard) -> Void
@@ -77,7 +77,7 @@ struct ManualPromoEntryView: View {
     }
 
     /// Optional link to the catalog card this promo is gameplay-identical to, so the
-    /// gap-check counts it as a functional copy (#48).
+    /// gap-check counts it as a functional copy.
     @ViewBuilder private var playsAsSection: some View {
         Section {
             if let p = playsAs {

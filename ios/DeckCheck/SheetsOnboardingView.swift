@@ -1,11 +1,10 @@
 import SwiftUI
 import DeckCheckCore
 
-// v2 onboarding screen (spec §8.2): "Sign in with Google, we set up your Sheet."
-// The inventory-connection surface reached from Settings. Paste your OAuth Client ID,
-// sign in, create the Inventory sheet, and run the read / write self-tests to
-// confirm the whole 2a–2c pipeline works on-device before milestone 3 wires it into
-// the real intake/removal flows.
+// Onboarding screen: "Sign in with Google, we set up your Sheet." The
+// inventory-connection surface reached from Settings — paste your OAuth Client ID,
+// sign in, create the Inventory sheet, and (optionally) run the read/write self-tests
+// to confirm the connection works on-device.
 
 struct SheetsOnboardingView: View {
     // The shared instance AppModel owns — so the connection the app syncs through is

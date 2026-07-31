@@ -2,7 +2,7 @@ import SwiftUI
 import DeckCheckCore
 
 /// A decklist gap-check with a **review step** for lines the catalog couldn't
-/// identify (spec §7.4) — usually promos or brand-new cards. Tap an unresolved line
+/// identify — usually promos or brand-new cards. Tap an unresolved line
 /// to pick the card it is (search the catalog, or enter it as a promo and link what
 /// it plays as); it's then counted. Overrides are in-memory for this view.
 ///

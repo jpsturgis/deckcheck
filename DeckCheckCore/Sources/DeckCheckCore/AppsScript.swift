@@ -1,7 +1,7 @@
 import Foundation
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Apps Script API translation layer (spec §7.4 PART 2 — in-browser/app-closed
+// Apps Script API translation layer (in-browser/app-closed
 // gap-check). The pure, testable half of the deploy client: turn "create a
 // container-bound script on the user's sheet and push the gap-check code" into
 // concrete HTTPRequestSpecs against the Apps Script REST API

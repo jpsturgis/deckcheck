@@ -1,6 +1,6 @@
 import Foundation
 
-/// Resolves one parsed decklist line to a functional-equivalence group (spec §7.4
+/// Resolves one parsed decklist line to a functional-equivalence group (the
 /// "resolve"), reusing the same catalog the recognizer and search use so a decklist
 /// target and the inventory land in the same group.
 ///

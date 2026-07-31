@@ -5,7 +5,7 @@ final class RecognizerTests: XCTestCase {
     let catalog = Fixture.catalog
 
     func testPrintedTotalPinsTheSet() {
-        // The §3.2 "/197" trick: number 125 + printed total 197 → OBF Charizard ex,
+        // The "/197" trick: number 125 + printed total 197 → OBF Charizard ex,
         // WITHOUT any set code.
         let rec = RecognizedCard(numberTotals: [NumberTotal(number: "125", printedTotal: "197")])
         let r = PrintingResolver.resolve(rec, catalog: catalog)

@@ -1,11 +1,11 @@
 import Foundation
 
-// Resolve an OCR read of a card to a catalog printing (spec §6 step 2 / §3.2).
+// Resolve an OCR read of a card to a catalog printing.
 // Platform-independent so it's unit-tested here and reused by the app's scanner.
 
 /// A collector-number / printed-total pair read off the card, e.g. 57 / 191.
 public struct NumberTotal: Equatable {
-    public let number: String        // collector number, leading zeros stripped (§3.2)
+    public let number: String        // collector number, leading zeros stripped
     public let printedTotal: String  // set total, e.g. "191"
     public init(number: String, printedTotal: String) {
         self.number = number; self.printedTotal = printedTotal
@@ -32,7 +32,7 @@ public struct RecognizedCard {
 public struct PrintingResolution: Equatable {
     public enum Confidence: Equatable { case confident, uncertain }
     public var best: CatalogCard?         // the resolved printing, if unambiguous
-    public var candidates: [CatalogCard]  // alternatives for the correction picker (§7.1)
+    public var candidates: [CatalogCard]  // alternatives for the correction picker
     public var confidence: Confidence
     public init(best: CatalogCard?, candidates: [CatalogCard], confidence: Confidence) {
         self.best = best; self.candidates = candidates; self.confidence = confidence

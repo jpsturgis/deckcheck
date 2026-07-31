@@ -19,7 +19,7 @@ struct CameraPreview: UIViewRepresentable {
     }
 }
 
-/// Rapid-fire capture (spec §7.1): a stay-open camera with a live preview and a
+/// Rapid-fire capture: a stay-open camera with a live preview and a
 /// card-framing guide. Each shutter tap fires `onCapture`; the camera stays up so you
 /// can snap card after card. **Done** closes it. Because the preview is live, the
 /// macro/sharpness settles on screen before you shoot — no post-capture surprise.

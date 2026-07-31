@@ -26,8 +26,8 @@ public enum ManualEntry {
     /// the typed fields (so re-entering the same promo matches for removal, and never
     /// collides with a real `ptcg:` id). `equivalenceKey`:
     /// - if `equivalenceKey` is supplied (the user linked the catalog card this promo
-    ///   *plays as*, §4), the promo adopts that functional group and so counts as a copy
-    ///   in the gap-check (#48);
+    ///   *plays as*), the promo adopts that functional group and so counts as a copy
+    ///   in the gap-check;
     /// - otherwise it's the `manual:` id — the promo is its own one-printing group and
     ///   won't match any deck's requirement.
     public static func promoCard(name: String, code: String, number: String,
@@ -42,7 +42,7 @@ public enum ManualEntry {
         // A *linked* promo folds its adopted key into the id, so a re-link produces a
         // genuinely distinct row: remove the old id + append the new id can ride one
         // outbox batch without the reconciler netting them into a mere qty change
-        // (it keys rows by card_id and never rewrites a row's equivalence_key). §5.3
+        // (it keys rows by card_id and never rewrites a row's equivalence_key).
         let idSource = [code.isEmpty ? name : code, number, equivalenceKey]
             .compactMap { $0 }
             .filter { !$0.isEmpty }

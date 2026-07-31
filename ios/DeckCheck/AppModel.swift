@@ -3,7 +3,7 @@ import Combine
 import DeckCheckCore
 
 /// Top-level coordinator. Owns the stores and the sync action that flushes the
-/// outbox then refreshes the read-cache (spec §5.4). The individual stores are
+/// outbox then refreshes the read-cache. The individual stores are
 /// injected into the view tree as environment objects; this ties them together.
 @MainActor
 final class AppModel: ObservableObject {
@@ -11,7 +11,7 @@ final class AppModel: ObservableObject {
     let inventory = InventoryStore()
     let outbox = Outbox()
     let decks = DecksStore()             // deck tabs → "in-use" reservations
-    let sheets = GoogleSheetsService()   // the inventory backend: direct Sheets API (spec §5, §8.2)
+    let sheets = GoogleSheetsService()   // the inventory backend: direct Sheets API
 
     /// Whether writes/reads will actually go somewhere — i.e. the Sheet is connected.
     /// Drives the "Sync now" affordance.
@@ -39,7 +39,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// App-driven sheet gap-check (spec §7.4): read the decklist pasted into the Gap
+    /// App-driven sheet gap-check: read the decklist pasted into the Gap
     /// Check tab, run the engine, and write the report back into that tab. Best-effort
     /// — a failure here never blocks a sync.
     private func runSheetGapCheck() async {

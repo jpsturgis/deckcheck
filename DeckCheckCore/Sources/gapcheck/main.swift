@@ -1,8 +1,8 @@
 import Foundation
 
 // deckcheck laptop CLI. Two subcommands over the tools/build-catalog catalog snapshot:
-//   (default)  gap-check a decklist         — spec §7.4   (GapCheckCommand.swift)
-//   search     search the catalog by name   — spec §7.3   (SearchCommand.swift)
+//   (default)  gap-check a decklist           (GapCheckCommand.swift)
+//   search     search the catalog by name     (SearchCommand.swift)
 
 enum CLIError: Error, CustomStringConvertible {
     case usage(String)

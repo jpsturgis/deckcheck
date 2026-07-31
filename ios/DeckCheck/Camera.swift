@@ -2,7 +2,7 @@ import AVFoundation
 import UIKit
 import Combine
 
-/// A custom AVFoundation capture session for card scanning (spec §6). Unlike the
+/// A custom AVFoundation capture session for card scanning. Unlike the
 /// system picker, this gives us a **live preview** and control of the device —
 /// continuous autofocus and a macro-capable virtual device — so close-up card reads
 /// are sharp in the preview (you shoot when it looks right) instead of the picker's

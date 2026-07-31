@@ -1,7 +1,7 @@
 import Foundation
 import DeckCheckCore
 
-// High-level v2 Sheets service (spec §5, §8.2): the onboarding/connection object the
+// High-level v2 Sheets service: the onboarding/connection object the
 // beta screen drives. It owns the per-user client id + the connected SheetRef
 // (UserDefaults; not secret), delegates tokens to GoogleAuthService (Keychain), and
 // composes the tested core request-builders (GoogleSheets) with the URLSession
@@ -19,7 +19,7 @@ final class GoogleSheetsService: ObservableObject {
     @Published var busy = false
     @Published var lastError: String?
 
-    /// In-browser / app-closed gap-check (§7.4 PART 2). Off by default; on only after
+    /// In-browser / app-closed gap-check. Off by default; on only after
     /// the user opts in, grants `script.projects`, and the bound script is deployed.
     @Published private(set) var browserGapCheckEnabled = false
     private var scriptId: String?
@@ -132,7 +132,7 @@ final class GoogleSheetsService: ObservableObject {
     /// Inventory sheet connected. AppModel prefers this over the v1 Apps Script path.
     var isConnected: Bool { isConfigured && isSignedIn && sheetRef != nil }
 
-    /// Read the whole Inventory tab into the app's read-cache rows (§5.3).
+    /// Read the whole Inventory tab into the app's read-cache rows.
     func fetchInventory() async throws -> [InventoryRow] {
         let table = try await loadInventory()
         return table.rows.map { placed in
@@ -181,7 +181,7 @@ final class GoogleSheetsService: ObservableObject {
         return decks
     }
 
-    // ── sheet gap-check (app-driven, spec §7.4) ──────────────────────────────
+    // ── sheet gap-check (app-driven) ──────────────────────────────
 
     /// Read the decklist pasted into column A of the Gap Check tab. If the tab is
     /// missing (a sheet created before this feature), create + seed it and return "".
@@ -222,7 +222,7 @@ final class GoogleSheetsService: ObservableObject {
         _ = try await http.execute(GoogleSheets.seedGapCheckRequest(spreadsheetId: ref.spreadsheetId, accessToken: token))
     }
 
-    // ── in-browser / app-closed gap-check (spec §7.4 PART 2) ─────────────────────
+    // ── in-browser / app-closed gap-check ─────────────────────
 
     /// An auth service that requests the extra `script.projects` scope (a fresh consent
     /// showing the Apps Script permission). Same client id / stored token as `auth`.
@@ -363,7 +363,7 @@ final class GoogleSheetsService: ObservableObject {
         defaults.set(false, forKey: Keys.browserGapCheck)
     }
 
-    /// Flush an outbox batch to the Sheet (§5.2): convert ops → InventoryChanges,
+    /// Flush an outbox batch to the Sheet: convert ops → InventoryChanges,
     /// plan against the current grid, execute. Returns the ids of ops acknowledged
     /// (all, on success — the whole batch is applied atomically enough for a single
     /// user, so a throw leaves everything queued for retry).

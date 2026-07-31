@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import DeckCheckCore
 
-/// Decklist gap-check (spec §7.4): paste a TCG Live / Limitless list → gap-first
+/// Decklist gap-check: paste a TCG Live / Limitless list → gap-first
 /// report + a TCGplayer buy list you can copy or open pre-filled. Functional
 /// ownership is the criterion; unidentified lines (promos) get a review step.
 struct GapCheckView: View {

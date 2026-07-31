@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// UIKit camera / photo-library bridge — full-resolution stills for Vision (spec §6).
+/// UIKit camera / photo-library bridge — full-resolution stills for Vision.
 struct ImagePicker: UIViewControllerRepresentable {
     enum Source { case camera, library }
     let source: Source

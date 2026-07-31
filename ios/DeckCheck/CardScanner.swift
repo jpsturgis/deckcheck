@@ -3,7 +3,7 @@ import Vision
 import CoreGraphics
 import DeckCheckCore
 
-/// Apple Vision text recognition tuned for card reads (spec §6) — the checkpoint
+/// Apple Vision text recognition tuned for card reads — the checkpoint
 /// logic (validated on real cards, #4) as a reusable scanner. Produces the OCR
 /// candidates the resolver needs.
 struct ScanResult {
@@ -11,7 +11,7 @@ struct ScanResult {
     var numberTotals: [(number: String, printedTotal: String)] = []
     var looseNumbers: [String] = []
     var setCodeCandidates: [String] = []
-    /// HP read off the card (e.g. "160") — a recognizer disambiguator (§6).
+    /// HP read off the card (e.g. "160") — a recognizer disambiguator.
     var hpGuess: String?
     /// Best-guess card name: the longest alphabetic line (names dominate the card face).
     var nameGuess: String?
@@ -84,7 +84,7 @@ enum CardScanner {
 }
 
 extension ScanResult {
-    /// Map the OCR read into the core resolver's input (spec §6).
+    /// Map the OCR read into the core resolver's input.
     func asRecognizedCard() -> RecognizedCard {
         RecognizedCard(
             nameGuess: nameGuess,

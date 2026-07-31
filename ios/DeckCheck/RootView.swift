@@ -15,7 +15,7 @@ struct RootView: View {
                 .tabItem { Label("Gap Check", systemImage: "checklist") }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
-                .badge(outbox.count) // pending sync: N (§5.4)
+                .badge(outbox.count) // pending sync: N
         }
     }
 }

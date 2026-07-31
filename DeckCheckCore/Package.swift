@@ -4,7 +4,7 @@ import PackageDescription
 // The shared, platform-independent query-core for deckcheck (spec §7.3 search
 // and §7.4 decklist gap-check share this core), plus a SQLite-backed CatalogLookup
 // over the tools/build-catalog snapshot and a `gapcheck` CLI that runs the whole pipeline
-// against a real catalog from the laptop (spec §7.4 is platform-independent).
+// against a real catalog from the laptop.
 //
 // DeckCheckCore + DeckCheckSQLite are pure library targets the SwiftUI app
 // adds as a local package dependency; `gapcheck` is a host (macOS) executable.

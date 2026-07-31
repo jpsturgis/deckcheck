@@ -2,7 +2,7 @@ import Foundation
 import Security
 import DeckCheckCore
 
-// Keychain persistence for the Google OAuth tokens (spec §8.2). Tokens are the one
+// Keychain persistence for the Google OAuth tokens. Tokens are the one
 // genuinely secret thing the v2 flow holds, so they live in the Keychain — not
 // UserDefaults (where v1's Apps Script shared-secret sits). Stored as a small JSON
 // blob under one account so a refresh overwrites cleanly.

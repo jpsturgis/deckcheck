@@ -1,7 +1,7 @@
 import Foundation
 
 // Loads the bundled Apps Script sources (Resources/Code.gs + gapcheck.gs) that the
-// app deploys into the user's sheet for in-browser gap-check (spec §7.4 PART 2).
+// app deploys into the user's sheet for in-browser gap-check.
 // Kept out of AppsScript.swift so those request builders stay pure/Bundle-free and
 // unit-testable without resources; this loader is exercised via Bundle.module.
 public enum BoundScriptAssets {

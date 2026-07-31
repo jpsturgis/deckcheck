@@ -15,7 +15,7 @@ final class SearchServiceTests: XCTestCase {
 
     func testPrintingsOrderedNewestFirst() {
         // Charizard ex: OBF (2023/08/11) + PAF (2024/01/26). The newer PAF printing
-        // should lead the group and be the representative (#53).
+        // should lead the group and be the representative.
         let g = SearchService.search(query: "Charizard", owned: [], catalog: catalog)[0]
         XCTAssertEqual(g.printings.map(\.cardId), ["ptcg:paf-234", "ptcg:obf-125"])
         XCTAssertEqual(g.representative.cardId, "ptcg:paf-234")
@@ -79,7 +79,7 @@ final class SearchServiceTests: XCTestCase {
     }
 
     func testNamePlusNumberNarrowsToPrinting() {
-        // "Charizard 125" → only the OBF printing (#125), not PAF (#234).
+        // "Charizard 125" → only the OBF printing, not PAF.
         let g = SearchService.search(query: "Charizard 125", owned: [], catalog: catalog)
         XCTAssertEqual(g.count, 1)
         XCTAssertEqual(g[0].printings.map(\.cardId), ["ptcg:obf-125"])

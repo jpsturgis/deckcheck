@@ -1,14 +1,14 @@
 import Foundation
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The inventory ↔ Google Sheet sync core (spec v2 §5). Two pure, testable pieces:
+// The inventory ↔ Google Sheet sync core. Two pure, testable pieces:
 //
 //   1. SheetTable — parse a Sheets `values.get` grid ([[String]]) into typed,
 //      position-tagged rows (header-driven, so the person may reorder columns),
 //      and serialize a row back into the Sheet's column order for writes.
 //
 //   2. SyncPlanner — the reconciliation that in v1 lived in the Apps Script
-//      `doPost` (§5.2), ported CLIENT-SIDE: intake → +1 or append; removal → −1,
+//      `doPost`, ported CLIENT-SIDE: intake → +1 or append; removal → −1,
 //      delete the row at 0. It reads the current grid and emits a list of planned
 //      operations as PURE DATA. The iOS network layer (next increment) translates
 //      those into Sheets `values.batchUpdate` / `deleteDimension` calls.
@@ -18,7 +18,7 @@ import Foundation
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// The live Sheet's header column order — lets the writer target the right cells
-/// no matter how the person has arranged the columns (§5.1).
+/// no matter how the person has arranged the columns.
 public struct SheetLayout: Equatable {
     /// Lowercased header names, in Sheet column order (index 0 = column A).
     public let columns: [String]
@@ -27,7 +27,7 @@ public struct SheetLayout: Equatable {
         self.columns = header.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
     }
 
-    /// The canonical layout a freshly-created "Inventory" tab is given (§8.2).
+    /// The canonical layout a freshly-created "Inventory" tab is given.
     public static let canonical = SheetLayout(header: InventoryRow.canonicalHeader)
 
     /// 0-based column index of a known inventory column, if present.
@@ -39,7 +39,7 @@ public struct SheetLayout: Equatable {
     }
 
     /// Parse one data row (a Sheet values row, possibly short) using this layout.
-    /// Returns nil when the row has no `card_id` — the app keys on it (§5.1).
+    /// Returns nil when the row has no `card_id` — the app keys on it.
     public func parse(_ cells: [String]) -> InventoryRow? {
         func cell(_ col: InventoryColumn) -> String {
             guard let i = index(of: col), i < cells.count else { return "" }
@@ -73,7 +73,7 @@ public struct PlacedRow: Equatable {
     }
 }
 
-/// A parsed inventory grid: the header layout + placed data rows (§5.3 read-cache).
+/// A parsed inventory grid: the header layout + placed data rows.
 public struct SheetTable: Equatable {
     public let layout: SheetLayout
     public let rows: [PlacedRow]
@@ -98,11 +98,11 @@ public struct SheetTable: Equatable {
         return SheetTable(layout: layout, rows: placed)
     }
 
-    /// The read-cache view the gap-check / search core consumes (§5.3).
+    /// The read-cache view the gap-check / search core consumes.
     public var owned: [OwnedCard] { rows.compactMap { $0.row.owned } }
 }
 
-// ── Reconciliation (v1's doPost, ported client-side — §5.2) ───────────────────
+// ── Reconciliation (v1's doPost, ported client-side) ───────────────────
 
 /// One inventory change to reconcile. Intake carries a `template` (the resolved
 /// card's display columns) so a not-yet-owned printing can be appended; removal
@@ -127,13 +127,13 @@ public struct InventoryChange: Equatable {
     }
 }
 
-/// A planned Sheet write (§5.2). Pure data — the network layer executes it.
+/// A planned Sheet write. Pure data — the network layer executes it.
 public enum SyncOp: Equatable {
     /// Set an existing row's qty cell (qty stays > 0). `values.batchUpdate`.
     case setQty(sheetRowNumber: Int, cardId: String, qty: Int)
     /// Append a new printing at the given qty. `values.append`.
     case appendRow(InventoryRow)
-    /// Delete a row whose qty reached 0 (§5.2). `deleteDimension`.
+    /// Delete a row whose qty reached 0. `deleteDimension`.
     case deleteRow(sheetRowNumber: Int, cardId: String)
 }
 
@@ -144,7 +144,7 @@ public enum SyncPlanner {
         /// DESCENDING by row number (bottom-up) so a delete never shifts the row a
         /// later op targets. Apply value writes first, deletes last.
         public let ops: [SyncOp]
-        /// Removals of a card_id you don't own — nothing to decrement (§5.2 no-op).
+        /// Removals of a card_id you don't own — nothing to decrement.
         public let skippedRemovals: [String]
         /// Intake of a new card_id with no template — can't append without columns.
         public let unappendable: [String]
@@ -154,9 +154,9 @@ public enum SyncPlanner {
         }
     }
 
-    /// Reconcile a batch of changes against the current grid (§5.2). Same-card_id
-    /// changes are netted so a batch collapses into one op per card (fewer writes,
-    /// §5.3). Read-before-write + last-writer-wins are inherent: we plan against the
+    /// Reconcile a batch of changes against the current grid. Same-card_id
+    /// changes are netted so a batch collapses into one op per card (fewer writes).
+    /// Read-before-write + last-writer-wins are inherent: we plan against the
     /// grid we read, and setQty overwrites the whole cell.
     public static func plan(current table: SheetTable, changes: [InventoryChange]) -> Plan {
         // First occurrence of each card_id wins if the Sheet has accidental dupes.

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Turn a gap report into a TCGplayer **Mass Entry** buy list (spec §7.4 export): the
+/// Turn a gap report into a TCGplayer **Mass Entry** buy list: the
 /// shortfall only — Missing at full quantity, Short at the delta. Cards satisfied by a
 /// functional different printing are already owned, so they're `.have` and excluded.
 ///

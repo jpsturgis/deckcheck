@@ -112,7 +112,7 @@ final class SQLiteCatalogTests: XCTestCase {
     }
 
     func testHPSurfacedFromAttributesJSON() throws {
-        // hp lives in the attributes JSON, pulled out via json_extract (§6).
+        // hp lives in the attributes JSON, pulled out via json_extract.
         let cat = try SQLiteCatalog(path: path)
         XCTAssertEqual(cat.card(byId: "ptcg:obf-125")?.hp, "330")
         XCTAssertNil(cat.card(byId: "ptcg:paf-233")?.hp)   // no hp key → nil
@@ -133,7 +133,7 @@ final class SQLiteCatalogTests: XCTestCase {
         let cat = try SQLiteCatalog(path: path)
         let group = cat.cards(equivalenceKey: "char")
         XCTAssertEqual(group.count, 2)                       // both Charizard ex printings
-        // Newest set first (#53): PAF (2024/01/26) ahead of OBF (2023/08/11).
+        // Newest set first: PAF (2024/01/26) ahead of OBF (2023/08/11).
         XCTAssertEqual(group.map(\.cardId), ["ptcg:paf-234", "ptcg:obf-125"])
         XCTAssertEqual(group.first?.releaseDate, "2024/01/26")
         XCTAssertTrue(cat.cards(equivalenceKey: "nope").isEmpty)
@@ -145,7 +145,7 @@ final class SQLiteCatalogTests: XCTestCase {
         XCTAssertEqual(all.count, 4)
         XCTAssertEqual(Set(all.map(\.cardId)),
                        ["ptcg:obf-125", "ptcg:paf-234", "ptcg:obf-197", "ptcg:paf-233"])
-        // Feeds the resolution index (§7.4 PART 2): the seven slim columns line up.
+        // Feeds the resolution index: the seven slim columns line up.
         let index = CatalogIndexExport.rows(all)
         XCTAssertEqual(index.count, 4)
         let charOBF = try XCTUnwrap(index.first { $0[0] == "ptcg:obf-125" })

@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import DeckCheckCore
 
-/// The local read-cache mirroring the Sheet (spec §5.4): instant/offline lookups,
+/// The local read-cache mirroring the Sheet: instant/offline lookups,
 /// owned counts, and search input. Refreshes from `doGet` on launch and pull-to-
 /// refresh; persisted so it's available offline.
 @MainActor
@@ -22,12 +22,12 @@ final class InventoryStore: ObservableObject {
     var owned: [OwnedCard] { rows.ownedCards }
 
     /// Functional owned count for an equivalence group (any printing) — for the
-    /// quiet "owned: N" badge (§7.1) and search.
+    /// quiet "owned: N" badge and search.
     func ownedCount(forKey key: String) -> Int {
         rows.filter { $0.equivalence_key == key }.reduce(0) { $0 + $1.qty }
     }
 
-    /// Which owned printing a removal should decrement (spec §7.2): the exact scanned
+    /// Which owned printing a removal should decrement: the exact scanned
     /// printing if owned, else an owned **functional equivalent** (the printing you
     /// own the most of), else nil = not in inventory.
     func removalTarget(cardId: String, equivalenceKey key: String) -> (row: InventoryRow, exact: Bool)? {
@@ -42,7 +42,7 @@ final class InventoryStore: ObservableObject {
     }
 
     /// Refresh the read-cache via the active backend (injected as a closure so this
-    /// works against either the v1 Apps Script client or the v2 Sheets API — §5.3).
+    /// works against either the v1 Apps Script client or the v2 Sheets API).
     func refresh(fetch: () async throws -> [InventoryRow]) async {
         do {
             rows = try await fetch()

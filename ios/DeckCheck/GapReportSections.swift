@@ -3,7 +3,7 @@ import UIKit
 import DeckCheckCore
 
 /// Renders a `GapReport` as Form sections — the gap-first buckets plus a TCGplayer
-/// buy list you can copy or open pre-filled (spec §7.4). Shared by the Gap Check
+/// buy list you can copy or open pre-filled. Shared by the Gap Check
 /// scratchpad (paste a list) and the per-deck view (a saved `Deck:` tab).
 struct GapReportSections: View {
     let report: GapReport

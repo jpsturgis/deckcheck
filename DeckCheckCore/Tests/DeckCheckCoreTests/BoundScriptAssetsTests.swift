@@ -12,6 +12,14 @@ final class BoundScriptAssetsTests: XCTestCase {
         XCTAssertFalse(code.contains("function doGet("))
     }
 
+    func testCodeGuardsAgainstFormulaInjection() throws {
+        // A pasted decklist line like =IMPORTXML(...) must not be written as a live
+        // formula: the guard is defined and applied to the user-derived cells.
+        let code = try BoundScriptAssets.source("Code")
+        XCTAssertTrue(code.contains("function formulaGuard("))
+        XCTAssertTrue(code.contains("formulaGuard(report.unidentified"))
+    }
+
     func testEngineSourceLoadsAndHasCheckDecklist() throws {
         let engine = try BoundScriptAssets.source("gapcheck")
         XCTAssertTrue(engine.contains("function checkDecklist("))

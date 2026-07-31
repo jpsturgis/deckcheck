@@ -1,14 +1,14 @@
 import Foundation
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Google Sheets API translation layer (spec v2 §5). The pure, testable half of the
+// Google Sheets API translation layer. The pure, testable half of the
 // 2c Sheets client: turn the app's intents — read the inventory, apply a
 // SyncPlanner.Plan, create/seed the Inventory sheet at onboarding — into concrete
 // HTTPRequestSpecs against the Sheets v4 REST API, and parse the responses. The
 // iOS shell (URLSession) just fires these; keeping the request/response mapping
 // here means the "SyncOps → real API calls" step is unit-tested off-device.
 //
-// A Plan (from SyncPlanner, §5.2) maps to at most three calls, in the plan's
+// A Plan (from SyncPlanner) maps to at most three calls, in the plan's
 // write-safe order: one values:batchUpdate for all setQty edits, one values:append
 // for all new rows, one spreadsheet :batchUpdate of deleteDimension for the rows
 // that hit qty 0 (bottom-up — the plan already sorts them descending).
@@ -37,11 +37,11 @@ public enum GoogleSheets {
     public static let inventoryTitle = "Inventory"
     static let spreadsheetTitle = "DeckCheck Inventory"
 
-    // ── onboarding: create + seed the Inventory sheet (§8.2) ─────────────────
+    // ── onboarding: create + seed the Inventory sheet ─────────────────
 
     /// Create a new spreadsheet with a single "Inventory" tab. `drive.file` lets the
     /// app create this file; nothing else in the user's Drive is touched.
-    /// The prepackaged decklist gap-check tab (spec §7.4). Paste a decklist in column
+    /// The prepackaged decklist gap-check tab. Paste a decklist in column
     /// A; the app writes the report into column C on sync.
     public static let gapCheckTitle = "Gap Check"
 
@@ -56,7 +56,7 @@ public enum GoogleSheets {
         return jsonRequest(.post, url(base), accessToken: accessToken, json: body)
     }
 
-    // ── sheet gap-check: prepackaged "Gap Check" tab (app-driven, spec §7.4) ──────
+    // ── sheet gap-check: prepackaged "Gap Check" tab (app-driven) ──────
 
     /// Add a tab (used to backfill the Gap Check tab on sheets made before it existed).
     public static func addSheetRequest(spreadsheetId: String, title: String, accessToken: String) -> HTTPRequestSpec {
@@ -112,7 +112,7 @@ public enum GoogleSheets {
         return rows
     }
 
-    // ── in-browser gap-check: the hidden "Catalog" resolution index (§7.4 PART 2) ─
+    // ── in-browser gap-check: the hidden "Catalog" resolution index ─
 
     /// The hidden tab the app pushes the slim resolution index into so a bound Apps
     /// Script can resolve decklist lines with the app closed (CatalogIndexExport).
@@ -206,7 +206,7 @@ public enum GoogleSheets {
                 "fields": "userEnteredFormat.numberFormat",
             ]]
         }
-        // columns (§5.1 order): 0 name,1 set,2 code,3 number,4 qty,5 location,6 card_id,
+        // columns: 0 name,1 set,2 code,3 number,4 qty,5 location,6 card_id,
         // 7 equivalence_key,8 norm_version.
         let requests: [[String: Any]] = [
             fmt(0, 9, ["type": "TEXT"]),
@@ -216,7 +216,7 @@ public enum GoogleSheets {
                            accessToken: accessToken, json: ["requests": requests])
     }
 
-    /// Write the canonical header row into a freshly-created Inventory tab (§5.1).
+    /// Write the canonical header row into a freshly-created Inventory tab.
     public static func writeHeaderRequest(ref: SheetRef, accessToken: String) -> HTTPRequestSpec {
         let range = "\(ref.title)!A1"
         return jsonRequest(.put,
@@ -225,7 +225,7 @@ public enum GoogleSheets {
                            json: ["values": [InventoryRow.canonicalHeader]])
     }
 
-    // ── read: hydrate the local read-cache (§5.3) ────────────────────────────
+    // ── read: hydrate the local read-cache ────────────────────────────
 
     /// Read the whole Inventory tab. The response parses to `[[String]]` → feed
     /// `SheetTable.parse` → the gap-check/search read-cache.
@@ -311,7 +311,7 @@ public enum GoogleSheets {
         )
     }
 
-    // ── write: execute a reconciliation plan (§5.2) ──────────────────────────
+    // ── write: execute a reconciliation plan ──────────────────────────
 
     /// Translate a SyncPlanner.Plan into ordered Sheets API requests: value updates,
     /// then appends, then row deletes (bottom-up). At most one request per kind; an
@@ -322,7 +322,7 @@ public enum GoogleSheets {
 
         // 1) setQty → one values:batchUpdate targeting each qty cell. qty is written as
         //    a NUMBER (RAW + numeric value) so it stores as a numeric cell — otherwise a
-        //    RAW string "4" is text, which Google's SUM silently skips (§5.1).
+        //    RAW string "4" is text, which Google's SUM silently skips.
         let qtyCol = layout.index(of: .qty).map(columnLetter)
         let updates: [[String: Any]] = plan.ops.compactMap { op in
             guard case let .setQty(rowNumber, _, qty) = op, let col = qtyCol else { return nil }

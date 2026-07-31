@@ -2,7 +2,7 @@ import Foundation
 import AuthenticationServices
 import DeckCheckCore
 
-// OAuth sign-in shell (spec §8.2). Presents the authorization URL that GoogleOAuth
+// OAuth sign-in shell. Presents the authorization URL that GoogleOAuth
 // built in ASWebAuthenticationSession, captures the reversed-client-id redirect
 // (no Info.plist URL-scheme registration needed — ASWebAuthenticationSession
 // intercepts the callbackURLScheme itself), exchanges the code for tokens, and

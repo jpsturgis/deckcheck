@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Code.gs — the container-bound gap-check for in-browser / app-closed checking
-// (spec §7.4 PART 2). Deployed into the user's OWN sheet by the app (Apps Script
+// Deployed into the user's OWN sheet by the app (Apps Script
 // API, `script.projects` scope) when they opt in.
 //
 // This is a gap-check-ONLY container-bound script: it carries no inventory-write
@@ -204,6 +204,17 @@ function writeGapMessage(sheet, message) {
 }
 
 /**
+ * Neutralize accidental formula injection: setValues() treats a string starting with
+ * = + - @ as a formula, so a pasted decklist line like =IMPORTXML(...) would execute in
+ * your own sheet. Prefix a single quote so it's stored as literal text. Applied to
+ * catalog- and user-derived cells; the intentional HYPERLINK cell is built separately.
+ */
+function formulaGuard(v) {
+  var s = String(v == null ? "" : v);
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+/**
  * Render a GapReport into the tab: headline, a gap-first table (Missing red / Short
  * amber / Have green) with per-gap TCGplayer links, an unidentified-lines list, and a
  * copy-ready TCGplayer Mass Entry block. All writes are batched.
@@ -248,7 +259,7 @@ function writeGapReport(sheet, report) {
       var url = tcgplayerSearchUrl(e.representative.name, e.representative.set_name, e.representative.number);
       if (url) link = '=HYPERLINK("' + url + '","TCGplayer")';
     }
-    push([statusLabel, e.requiredQty, e.ownedQty, e.shortQty, e.name, e.representative.set_name, link], bg);
+    push([statusLabel, e.requiredQty, e.ownedQty, e.shortQty, formulaGuard(e.name), formulaGuard(e.representative.set_name), link], bg);
   }
 
   // unidentified lines
@@ -256,7 +267,7 @@ function writeGapReport(sheet, report) {
     push([""], null);
     push(["❓ Unidentified lines (excluded from buildable):"], null);
     for (var u = 0; u < report.unidentified.length; u++) {
-      push([report.unidentified[u].raw], null);
+      push([formulaGuard(report.unidentified[u].raw)], null);
     }
   }
 
@@ -270,7 +281,7 @@ function writeGapReport(sheet, report) {
   var buyList = massEntry(report);
   push([""], null);
   push(["TCGplayer Mass Entry (copy the cell below):"], null);
-  push([buyList === "" ? "(nothing to buy — deck is buildable)" : buyList], null);
+  push([buyList === "" ? "(nothing to buy — deck is buildable)" : formulaGuard(buyList)], null);
 
   // batch write
   var range = sheet.getRange(1, GAPCHECK_REPORT_COL, rows.length, W);
