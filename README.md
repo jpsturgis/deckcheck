@@ -17,18 +17,13 @@
 
 ## Screenshots
 
-<!--
-  Add captures to docs/media/ and uncomment this block (see docs/media/README.md for the
-  suggested shot list, sizes, and gif tips):
-  <table>
-    <tr>
-      <td align="center"><img src="docs/media/intake.gif"   width="240"><br><sub>Snap to add cards</sub></td>
-      <td align="center"><img src="docs/media/gapcheck.png" width="240"><br><sub>Decklist gap-check + buy list</sub></td>
-      <td align="center"><img src="docs/media/search.png"   width="240"><br><sub>Search your collection</sub></td>
-    </tr>
-  </table>
--->
-_Screenshots coming soon._
+<table>
+  <tr>
+    <td align="center"><img src="docs/media/intake.gif"   width="240" alt="Snap to add cards"><br><sub>Snap to add cards</sub></td>
+    <td align="center"><img src="docs/media/gapcheck.gif" width="240" alt="Decklist gap-check + buy list"><br><sub>Decklist gap-check + buy list</sub></td>
+    <td align="center"><img src="docs/media/search.gif"   width="240" alt="Search your collection"><br><sub>Search your collection</sub></td>
+  </tr>
+</table>
 
 DeckCheck is **single-user and self-hosted**: each person runs their own copy against
 **their own Google Sheet**. There is no shared server, no account system, and nothing
