@@ -1,0 +1,19 @@
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Node (tools/build-catalog)
+node_modules/
+
+# Build artifacts & personal config — NEVER commit these (see README "recipe, not the meal")
+ios/DeckCheck/catalog.sqlite   # your self-built catalog snapshot
+ios/Config/Local.xcconfig      # your Apple Developer Team ID

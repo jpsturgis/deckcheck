@@ -1,0 +1,18 @@
+{
+  "name": "@poke-catalog/build-catalog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mac-side prep step (v2, OSS-personal): builds the read-only SQLite catalog from a user-supplied TCGdex source, keyed on a source-independent canonical <set>-<number> id and with precomputed equivalence keys. Ship the recipe, never the meal — this repo never commits catalog data or art. Spec v2 §3.",
+  "scripts": {
+    "build": "tsx src/build-catalog.ts",
+    "gen-set-code-map": "tsx src/gen-set-code-map.ts",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

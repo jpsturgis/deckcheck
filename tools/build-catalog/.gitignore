@@ -1,0 +1,6 @@
+node_modules/
+build/
+dump/
+*.sqlite
+*.sqlite-*
+cache/

@@ -1,0 +1,14 @@
+# Xcode user/build artifacts
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+.DS_Store
+
+# The bundled catalog is a build artifact (built by tools/build-catalog). Not committed —
+# drop your own catalog.sqlite into DeckCheck/ and add it to the target.
+DeckCheck/catalog.sqlite
+
+# Per-developer signing (your Apple Team ID). Copy Config/Local.xcconfig.example →
+# Config/Local.xcconfig and set DEVELOPMENT_TEAM there. Never committed.
+Config/Local.xcconfig
