@@ -13,6 +13,8 @@
 - **"Logging cards by hand is tedious."** — snap a photo of a stack to bulk-**add** them; snap the ones you trade away to **remove** them. Apple Vision reads each card — you just confirm.
 - **"I don't want my collection trapped in someone's app."** — your inventory is a plain **Google Sheet in your own Drive**: hand-editable, sortable, exportable, and still yours if you ever stop using DeckCheck.
 
+**→ [User guide](docs/usage.md)** — how every tab works (Scan · Cards · Decks · Gap Check · Settings).
+
 ## Screenshots
 
 <!--
@@ -142,6 +144,8 @@ to paste into the app.
   reopen the app.
 - In the app: **Settings → Inventory Sheet** → paste your **Client ID** → **Sign in with
   Google** → **Create my Inventory sheet**. That creates the Sheet in your Drive — done.
+
+Then see the **[User guide](docs/usage.md)** for how each tab works.
 
 **Optional — in-browser / app-closed gap-check.** Once connected, you can enable a mode
 that runs the decklist gap-check in your browser with the app closed. It's off by default
