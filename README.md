@@ -4,9 +4,29 @@
 
 <h1 align="center">DeckCheck</h1>
 
-A personal **Pokémon TCG inventory** iOS app. Snap your cards to add them, snap the
-ones you trade away to remove them, and paste a decklist to see exactly what you're
-missing — with reprints and alternate arts counted as interchangeable copies.
+<p align="center"><em>Track your Pokémon TCG collection on your phone, and know exactly what you're missing to build a deck — backed by a Google Sheet you own.</em></p>
+
+## What it solves
+
+- **"Do I already own this card?"** — search your whole collection from your phone in seconds.
+- **"What do I still need to build this deck?"** — paste a decklist (TCG Live "Copy List") and get a gap-first report plus a one-paste **TCGplayer buy list**. **Reprints and alternate arts count as the same card**, so it never tells you to buy something you already own in a different printing.
+- **"Logging cards by hand is tedious."** — snap a photo of a stack to bulk-**add** them; snap the ones you trade away to **remove** them. Apple Vision reads each card — you just confirm.
+- **"I don't want my collection trapped in someone's app."** — your inventory is a plain **Google Sheet in your own Drive**: hand-editable, sortable, exportable, and still yours if you ever stop using DeckCheck.
+
+## Screenshots
+
+<!--
+  Add captures to docs/media/ and uncomment this block (see docs/media/README.md for the
+  suggested shot list, sizes, and gif tips):
+  <table>
+    <tr>
+      <td align="center"><img src="docs/media/intake.gif"   width="240"><br><sub>Snap to add cards</sub></td>
+      <td align="center"><img src="docs/media/gapcheck.png" width="240"><br><sub>Decklist gap-check + buy list</sub></td>
+      <td align="center"><img src="docs/media/search.png"   width="240"><br><sub>Search your collection</sub></td>
+    </tr>
+  </table>
+-->
+_Screenshots coming soon._
 
 DeckCheck is **single-user and self-hosted**: each person runs their own copy against
 **their own Google Sheet**. There is no shared server, no account system, and nothing
