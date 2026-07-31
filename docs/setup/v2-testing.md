@@ -36,7 +36,7 @@ The one value to use consistently:
       written your Team (and now the bundle id changed), the pull may conflict on
       `project.pbxproj` — resolve with
       `git stash push -u -m mine && git pull && git stash apply` (then re-set your Team
-      if needed). See [[poke-catalog-resume]] signing gotcha.
+      if needed).
 - [ ] Open `ios/DeckCheck.xcodeproj` in Xcode.
 - [ ] Target **DeckCheck → Signing & Capabilities**: pick your **Team**; confirm
       **Bundle Identifier = `com.example.DeckCheck`**.

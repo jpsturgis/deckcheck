@@ -10,7 +10,7 @@ import Combine
 final class CameraController: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private let output = AVCapturePhotoOutput()
-    private let queue = DispatchQueue(label: "com.pokecatalog.camera.session")
+    private let queue = DispatchQueue(label: "com.deckcheck.camera.session")
     private var configured = false
     private var inFlight = Set<PhotoCaptureDelegate>() // retain delegates until capture completes
 

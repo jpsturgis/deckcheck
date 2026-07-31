@@ -23,7 +23,7 @@ to store or leak.
 
 1. **Create a project.** Go to <https://console.cloud.google.com/>, and create a new
    project (top bar → project dropdown → *New Project*). Name it anything, e.g.
-   `poke-catalog`.
+   `deckcheck`.
 
 2. **Enable the two APIs.** APIs & Services → *Enable APIs and Services*, then enable:
    - **Google Sheets API**
@@ -61,7 +61,7 @@ to store or leak.
 - **Want to stop the weekly sign-in?** Set the consent screen's publishing status to
   **In production**. Because the app is still *unverified*, Google shows a one-time
   **"Google hasn't verified this app"** warning — click *Advanced → Go to
-  poke-catalog (unsafe)* to proceed (you are the developer and the only user, so this
+  deckcheck (unsafe)* to proceed (you are the developer and the only user, so this
   is expected). After that, refresh tokens no longer expire on the 7-day clock. You do
   **not** need to complete verification for your own personal use.
 - **Never add the `drive` scope.** `drive.file` already lets the app create and open
