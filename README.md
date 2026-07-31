@@ -1,4 +1,8 @@
-# DeckCheck
+<p align="center">
+  <img src="ios/DeckCheck/Assets.xcassets/AppIcon.appiconset/AppIcon.png" alt="DeckCheck app icon" width="128" height="128">
+</p>
+
+<h1 align="center">DeckCheck</h1>
 
 A personal **Pokémon TCG inventory** iOS app. Snap your cards to add them, snap the
 ones you trade away to remove them, and paste a decklist to see exactly what you're
