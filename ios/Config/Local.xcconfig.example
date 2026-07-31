@@ -1,6 +1,15 @@
-// Copy this file to `Local.xcconfig` (same folder) and set your Apple Developer
-// Team ID. Local.xcconfig is git-ignored, so your team never lands in version control.
+// OPTIONAL — you normally don't need this file.
 //
-// Find your Team ID: Xcode → Settings → Accounts → (your account) → the 10-character
-// ID in parentheses, or developer.apple.com → Membership.
+// The simplest way to sign: in Xcode, select the DeckCheck target → Signing &
+// Capabilities → Automatically manage signing → pick your Team (a free Apple ID works,
+// no raw Team ID required). You must pick a Team in Xcode either way, so it can
+// provision your device.
+//
+// This file only helps if you'll commit a fork and want to keep your Team ID OUT of git:
+// copy it to `Local.xcconfig` (same folder — git-ignored) and set the ID below.
+//
+// To find your 10-character Team ID if you want it here, run in Terminal:
+//     security find-identity -v -p codesigning
+// It's the code in parentheses after your name on an "Apple Development" identity.
+// (Paid accounts can also read it at developer.apple.com → Membership.)
 DEVELOPMENT_TEAM = YOUR_TEAM_ID

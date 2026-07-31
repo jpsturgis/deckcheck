@@ -87,6 +87,12 @@ is a git-ignored build artifact.
 
 ## Build & run
 
+DeckCheck isn't on the App Store — you **build it in Xcode and run it on your own
+iPhone** (a "sideload"). A **free Apple ID works** (no paid Apple Developer account
+needed). You'll need: a **Mac with Xcode**, **Node 18+**, and an iPhone you can put into
+**Developer Mode**. Free-account catch: apps signed with a free Apple ID **stop
+launching after 7 days** — just re-run from Xcode to refresh.
+
 **1. Build your catalog snapshot** (Node 18+). The builder sources card data from
 [TCGdex](https://tcgdex.dev) (MIT-licensed, no API key):
 
@@ -98,24 +104,49 @@ npm run build -- --out ../../ios/DeckCheck/catalog.sqlite --cache-dir ./cache
 
 `--cache-dir` persists per-card JSON so rebuilds are cheap.
 
-**2. Set up your own Google OAuth client** (~10 min, one-time) — see
-[`docs/setup/google-oauth-client.md`](docs/setup/google-oauth-client.md). You get a
-single iOS client ID that you paste into the app; no client secret.
-
-**3. Open and run the app:**
+**2. Open the project and set up signing.** Do this *before* step 3 — creating the
+OAuth client needs your bundle id.
 
 ```sh
 open ios/DeckCheck.xcodeproj
 ```
 
-- Set your **signing team** on the `DeckCheck` target (a free Apple ID works). Copy
-  `ios/Config/Local.xcconfig.example` → `ios/Config/Local.xcconfig` and set your Team
-  ID there — it's git-ignored, so it never lands in version control. Change the bundle
-  id from `com.example.DeckCheck` to your own.
-- Confirm `catalog.sqlite` is in the `DeckCheck` target (the file-system-synchronized
+- Select the **DeckCheck** target → **Signing & Capabilities** → check **Automatically
+  manage signing** → pick your **Team** (your free Apple ID; add it under Xcode →
+  Settings → Accounts if it isn't listed). You **must** select a Team here — the app
+  won't build without one.
+- Set a **unique Bundle Identifier** (Apple requires it to be unique to sign): change
+  `com.example.DeckCheck` to e.g. `com.yourname.deckcheck`. **Note this value — step 3
+  needs it.**
+- Confirm `catalog.sqlite` is in the **DeckCheck** target (the file-system-synchronized
   group picks it up once it's in the folder).
-- Plug in your iPhone and **Run**. In the app, connect your inventory Sheet
-  (sign in with Google → it creates/links your Sheet).
+
+  <sub>Picking a Team writes your Team ID into the project file — fine for your own copy.
+  If you'll commit a fork and want to keep your Team ID out of git, put it in
+  `ios/Config/Local.xcconfig` (copy the `.example`) instead; you still pick the Team in
+  Xcode once so it can provision your device.</sub>
+
+**3. Set up your own Google OAuth client** (~10 min, one-time) — follow
+[`docs/setup/google-oauth-client.md`](docs/setup/google-oauth-client.md), using the
+**bundle id from step 2**. You end up with a single iOS **Client ID** (no client secret)
+to paste into the app.
+
+**4. Run on your iPhone and connect your Sheet.**
+
+- On the iPhone, enable **Developer Mode**: Settings → **Privacy & Security** →
+  **Developer Mode** → on → restart. (Leave it on; it only needs to be on to run your own
+  builds.)
+- Plug in the iPhone, select it as the run destination in Xcode, and **Run** (▶).
+- The first launch is blocked as an *untrusted developer*. On the iPhone: Settings →
+  **General → VPN & Device Management** → tap your developer profile → **Trust**, then
+  reopen the app.
+- In the app: **Settings → Inventory Sheet** → paste your **Client ID** → **Sign in with
+  Google** → **Create my Inventory sheet**. That creates the Sheet in your Drive — done.
+
+**Optional — in-browser / app-closed gap-check.** Once connected, you can enable a mode
+that runs the decklist gap-check in your browser with the app closed. It's off by default
+and adds one Google permission — see
+[`docs/setup/browser-gap-check.md`](docs/setup/browser-gap-check.md).
 
 ## Develop & test
 

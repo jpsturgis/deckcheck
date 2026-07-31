@@ -38,9 +38,14 @@ equivalent or a linked promo counts as owned), exactly matching the app.
 - Your Inventory sheet is connected in the app (Settings ▸ Inventory Sheet).
 - The catalog has finished loading in the app (the enable button is disabled until
   then — it reads the index from the local catalog to push it).
-- **The Apps Script API must be enabled for your Google account.** One-time: visit
-  <https://script.google.com/home/usersettings> and turn **Google Apps Script API**
-  on. Without it, enabling fails with a permission error from the Apps Script API.
+- **Enable the Apps Script API on your Google Cloud project** (the same project as your
+  OAuth client). The most reliable way is to open the API page directly and click
+  **Enable**: <https://console.cloud.google.com/apis/library/script.googleapis.com> —
+  make sure your project is selected in the top bar. (Direct-link form:
+  `https://console.developers.google.com/apis/api/script.googleapis.com/overview?project=YOUR_PROJECT_ID`.)
+  If deploying still errors afterward, also check the per-account toggle at
+  <https://script.google.com/home/usersettings> ("Google Apps Script API" → on). Without
+  the API enabled, turning the feature on fails with a permission error.
 
 ## Using it
 

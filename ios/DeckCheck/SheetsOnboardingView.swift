@@ -22,7 +22,9 @@ struct SheetsOnboardingView: View {
             } header: {
                 Text("Your OAuth Client ID")
             } footer: {
-                Text("From your own Google Cloud project — see the setup guide (docs/setup/google-oauth-client.md). No client secret is needed.")
+                Text(svc.isConfigured
+                     ? "From your own Google Cloud project — see the setup guide (docs/setup/google-oauth-client.md). No client secret is needed."
+                     : "Paste your OAuth Client ID to unlock the steps below. It comes from your own Google Cloud project — see docs/setup/google-oauth-client.md. No client secret is needed.")
             }
 
             Section("1 · Sign in") {
@@ -38,6 +40,7 @@ struct SheetsOnboardingView: View {
                     Button("Sign out", role: .destructive) { svc.signOut() }
                 }
             }
+            .disabled(!svc.isConfigured) // whole flow is gated on the Client ID
 
             Section("2 · Your Inventory sheet") {
                 if let url = svc.spreadsheetURL {
@@ -52,6 +55,7 @@ struct SheetsOnboardingView: View {
                     .disabled(!svc.isSignedIn || svc.busy)
                 }
             }
+            .disabled(!svc.isConfigured)
 
             Section {
                 Button { Task { await svc.testRead() } } label: {
@@ -66,8 +70,9 @@ struct SheetsOnboardingView: View {
             } header: {
                 Text("3 · Self-test")
             } footer: {
-                Text("The write test adds one row then removes it. Point v2 at a COPY of your live sheet while testing.")
+                Text("Optional. The write test adds one row then removes it — it's safe, but if you like you can point DeckCheck at a copy of your live sheet while testing.")
             }
+            .disabled(!svc.isConfigured)
 
             if svc.busy || !svc.status.isEmpty || svc.lastError != nil {
                 Section("Status") {
