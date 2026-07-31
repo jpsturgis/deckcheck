@@ -1,10 +1,9 @@
-# In-browser / app-closed gap-check (v2, optional)
+# In-browser / app-closed gap-check (optional)
 
 The Gap Check tab normally fills in when you **Sync** in the app — the app resolves
-your pasted decklist against its local catalog and writes the report back (spec
-[v2 §7.4](../spec/v2.md), PART 1). This optional feature lets that gap-check run
-**in your browser with the app closed**: you edit the decklist in the Gap Check tab
-and the report updates itself.
+your pasted decklist against its local catalog and writes the report back. This
+optional feature lets that gap-check run **in your browser with the app closed**: you
+edit the decklist in the Gap Check tab and the report updates itself.
 
 It's **off by default** and entirely opt-in. Turn it on from **Settings ▸ In-browser
 gap-check** once your Inventory sheet is connected.
@@ -28,7 +27,7 @@ gap-check** once your Inventory sheet is connected.
    - **`onOpen`** — adds a **DeckCheck ▸ Run gap-check** menu as a manual fallback.
 
    The deployed code is only the gap-check (parse → resolve → diff → gap-first
-   report); the retired v1 web-app backend is *not* deployed.
+   report) — no inventory-write surface is deployed.
 
 Ownership comes from the `Inventory` tab's `equivalence_key`/`qty` (so a functional
 equivalent or a linked promo counts as owned), exactly matching the app.
