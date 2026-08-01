@@ -1,8 +1,3 @@
-# Add a "Sponsor" button to this repo by uncommenting a line and filling in your handle.
-# GitHub reads this file automatically. Docs:
-# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
-
-# github: your-github-username        # GitHub Sponsors (native "Sponsor" button)
-# ko_fi: your-ko-fi-handle             # Ko-fi
-# buy_me_a_coffee: your-bmac-handle    # Buy Me a Coffee
-# custom: ["https://example.com/tip"]  # any URL(s)
+# GitHub reads this file automatically to show the repo's "Sponsor" button.
+github: jpsturgis
+ko_fi: jpsturgis

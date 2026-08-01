@@ -170,6 +170,13 @@ swift run gapcheck --help
 The design pattern throughout: build testable logic in `DeckCheckCore` first, keep the
 device shell thin.
 
+## Support
+
+DeckCheck is free and MIT-licensed. If it's useful to you and you'd like to help with its
+development, you can **[sponsor on GitHub](https://github.com/sponsors/jpsturgis)** or
+**[buy me a coffee on Ko-fi](https://ko-fi.com/jpsturgis)**. Entirely optional — it goes
+toward the app's development, nothing else. Thank you!
+
 ## License
 
 [MIT](LICENSE) — © 2026 jpsturgis. Do what you like; no warranty. See the

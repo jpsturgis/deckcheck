@@ -147,6 +147,31 @@ Paste a decklist and see exactly what you need to build it.
 
 ---
 
+## Ongoing use & tradeoffs
+
+Day to day you just scan, search, and gap-check — most of that works offline; only
+syncing needs a connection. A few things need occasional attention, and most have an
+"if you'd rather not deal with it" escape hatch:
+
+- **You'll re-sign in with Google about once a week.** While your OAuth client stays in
+  *Testing* mode, Google expires its refresh token every 7 days; the app just re-prompts
+  and your Sheet and data are untouched.
+  *Don't want the weekly sign-in?* Set your OAuth consent screen to **In production** — a
+  one-time "unverified app → continue" click-through, after which tokens stop expiring on
+  the 7-day clock. See [`setup/google-oauth-client.md`](setup/google-oauth-client.md).
+- **A free-Apple-ID build stops launching after 7 days.** That's Apple's sideloading
+  limit, not DeckCheck — plug in and hit **Run** in Xcode again to refresh it.
+  *Don't want to do that weekly?* A paid Apple Developer account signs for a year instead.
+- **New sets need a catalog rebuild.** When a set releases and you want its cards, re-run
+  `tools/build-catalog`, drop the new `catalog.sqlite` into the app, and (if you use
+  in-browser gap-check) tap **Refresh catalog index** in Settings. Until then the app
+  keeps working on your current catalog — there's no hosted catalog to auto-update, by
+  design.
+- **Don't want to open the app just to gap-check a list?** Use the **`Gap Check`** tab in
+  your Sheet (it fills in on the next sync), or the app-closed **in-browser** add-on.
+- **Don't want to scan?** You never have to: edit the Sheet by hand (below), use **Add
+  promo** in Cards, or the ± stepper on any card's detail.
+
 ## Editing the Sheet by hand
 
 Because the inventory *is* a Google Sheet in your Drive, you can sort, filter, fix a
