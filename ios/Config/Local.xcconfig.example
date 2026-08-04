@@ -1,14 +1,29 @@
-// OPTIONAL — you normally don't need this file.
+// OPTIONAL — but recommended if you'll commit a fork.
 //
-// The simplest way to sign: in Xcode, select the DeckCheck target → Signing &
-// Capabilities → Automatically manage signing → pick your Team (a free Apple ID works,
-// no raw Team ID required). You must pick a Team in Xcode either way, so it can
-// provision your device.
+// Copy this file to `Local.xcconfig` (same folder — git-ignored) and fill in the
+// values below. Everything here is personal to you and must stay out of git.
 //
-// This file only helps if you'll commit a fork and want to keep your Team ID OUT of git:
-// copy it to `Local.xcconfig` (same folder — git-ignored) and set the ID below.
+// Without this file you can still set both values in Xcode (target → Signing &
+// Capabilities). The catch is that Xcode then writes them into project.pbxproj,
+// which IS tracked — so your Team ID and bundle id show up as an uncommitted diff
+// forever, and are easy to commit by accident.
+
+// ── Bundle identifier ────────────────────────────────────────────────────────
+// Apple requires this to be unique to you, so the committed default
+// (com.example.DeckCheck) won't sign. Use reverse-DNS with your own name:
+DECKCHECK_BUNDLE_ID = com.yourname.deckcheck
+
+// NOTE: your Google OAuth client is tied to this value. If you change it after
+// setting up OAuth, create a new iOS client for the new bundle id — see
+// docs/setup/google-oauth-client.md.
+
+// ── Apple Developer Team ID ──────────────────────────────────────────────────
+// You must still pick your Team in Xcode once (Signing & Capabilities →
+// Automatically manage signing) so it can provision your device — a free Apple ID
+// works, no paid account needed. Setting it here as well is what keeps Xcode from
+// writing it into project.pbxproj.
 //
-// To find your 10-character Team ID if you want it here, run in Terminal:
+// To find your 10-character Team ID, run in Terminal:
 //     security find-identity -v -p codesigning
 // It's the code in parentheses after your name on an "Apple Development" identity.
 // (Paid accounts can also read it at developer.apple.com → Membership.)

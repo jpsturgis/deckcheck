@@ -1,12 +1,19 @@
 // Committed signing config for the DeckCheck app target.
 //
-// Your Apple Developer Team ID is personal and must NOT be committed, so it lives
-// in Local.xcconfig (this folder), which is git-ignored. Copy Local.xcconfig.example
-// → Local.xcconfig and set DEVELOPMENT_TEAM there.
+// Two settings here are *personal* — your Apple Developer Team ID and your bundle
+// identifier (Apple requires the latter to be unique to you). Neither belongs in
+// git, so both live in Local.xcconfig (this folder), which is git-ignored. Copy
+// Local.xcconfig.example → Local.xcconfig and set them there.
 //
-// The include is optional (`#include?`) so a fresh clone without Local.xcconfig still
-// opens/builds — Automatic signing will just prompt you to pick a team once.
+// The defaults below apply when Local.xcconfig is absent or doesn't set them, so a
+// fresh clone still opens and builds — Automatic signing just prompts you to pick a
+// team once, and you change the bundle id in Xcode.
 //
-// This is what keeps DEVELOPMENT_TEAM out of project.pbxproj, so `git pull` never
-// conflicts on your signing settings again.
+// This is what keeps DEVELOPMENT_TEAM and PRODUCT_BUNDLE_IDENTIFIER out of
+// project.pbxproj, so your own settings never show up as an uncommitted diff and
+// `git pull` never conflicts on them.
+
+// Placeholder — override in Local.xcconfig (values there win, it's included last).
+DECKCHECK_BUNDLE_ID = com.example.DeckCheck
+
 #include? "Local.xcconfig"
