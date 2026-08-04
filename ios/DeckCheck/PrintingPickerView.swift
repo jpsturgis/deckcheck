@@ -137,17 +137,7 @@ struct PrintingPickerView: View {
     @ViewBuilder private func thumbnail(_ card: CatalogCard) -> some View {
         // Larger than a list thumb so the card's art + text are legible when comparing
         // a promo to the printing it plays as.
-        if let s = card.imageSmall, let url = URL(string: s) {
-            AsyncImage(url: url) { image in
-                image.resizable().scaledToFit()
-            } placeholder: {
-                RoundedRectangle(cornerRadius: 6).fill(.quaternary)
-            }
-            .frame(width: 72, height: 100)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-        } else {
-            RoundedRectangle(cornerRadius: 6).fill(.quaternary).frame(width: 72, height: 100)
-        }
+        CardImage(urlString: card.imageSmall, size: CardArtSize.pickerThumb, cornerRadius: 6)
     }
 
     private func run() {

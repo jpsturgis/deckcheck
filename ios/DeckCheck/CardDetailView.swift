@@ -214,43 +214,36 @@ struct CardDetailView: View {
     // MARK: sections
 
     @ViewBuilder private func heroImage(_ card: CatalogCard) -> some View {
-        let urlString = card.imageLarge ?? card.imageSmall
-        Group {
-            if let s = urlString, let url = URL(string: s) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFit()
-                    case .failure: imagePlaceholder
-                    default: ProgressView().frame(height: 360)
-                    }
-                }
-            } else {
-                imagePlaceholder
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(maxHeight: 440)
+        hero(large: card.imageLarge ?? card.imageSmall, thumbnail: card.imageSmall)
     }
 
     /// Hero for a hand-entered promo: its linked card's art with a PROMO badge,
     /// or the placeholder when the promo isn't linked to a catalog card.
     @ViewBuilder private func promoHero(imageURL: String?) -> some View {
-        Group {
-            if let s = imageURL, let url = URL(string: s) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFit()
-                    case .failure: imagePlaceholder
-                    default: ProgressView().frame(height: 360)
-                    }
-                }
+        hero(large: imageURL, thumbnail: nil)
+            .overlay(alignment: .bottomTrailing) { PromoBadge().padding(10) }
+    }
+
+    /// The full card image, with the list thumbnail blurred underneath while it loads.
+    /// You almost always arrive here from a list that just showed the small image, so
+    /// it's already cached and costs nothing — the card is recognisable immediately and
+    /// sharpens in place, rather than appearing out of a spinner.
+    @ViewBuilder private func hero(large: String?, thumbnail: String?) -> some View {
+        CardImage(url: large.flatMap(URL.init(string:)),
+                  width: CardArtSize.hero.width, height: CardArtSize.hero.height,
+                  cornerRadius: 12) {
+            if let cached = thumbnail
+                .flatMap(URL.init(string:))
+                .flatMap({ CardImageLoader.cached($0, size: CardArtSize.listThumb) }) {
+                Image(uiImage: cached)
+                    .resizable().scaledToFit()
+                    .blur(radius: 6)
+                    .overlay(ProgressView().tint(.white))
             } else {
                 imagePlaceholder
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(maxHeight: 440)
-        .overlay(alignment: .bottomTrailing) { PromoBadge().padding(10) }
     }
 
     /// The art of the catalog card this promo *plays as*, if any.
@@ -400,16 +393,6 @@ struct CardDetailView: View {
     }
 
     @ViewBuilder private func printingThumb(_ s: String?) -> some View {
-        if let s, let url = URL(string: s) {
-            AsyncImage(url: url) { image in
-                image.resizable().scaledToFit()
-            } placeholder: {
-                RoundedRectangle(cornerRadius: 4).fill(.quaternary)
-            }
-            .frame(width: 34, height: 47)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-        } else {
-            RoundedRectangle(cornerRadius: 4).fill(.quaternary).frame(width: 34, height: 47)
-        }
+        CardImage(urlString: s, size: CardArtSize.printingThumb)
     }
 }

@@ -8,6 +8,11 @@ import SwiftUI
 struct DeckCheckApp: App {
     @StateObject private var model = AppModel()
 
+    init() {
+        // Image decoding runs off the main actor, so it can't read UIScreen itself.
+        CardImageLoader.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
