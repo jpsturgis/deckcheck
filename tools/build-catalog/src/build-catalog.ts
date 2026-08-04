@@ -24,6 +24,7 @@ import { dirname } from "node:path";
 import { fetchTcgdex, SOURCE_TAG, toResolvable, displayAttributes, imageUrl } from "./tcgdex.js";
 import { resolve, NORM_VERSION } from "./resolve.js";
 import { SCHEMA } from "./schema.js";
+import { searchText, SEARCH_INDEX_VERSION, type SearchableCard } from "./search-index.js";
 import {
   loadSetCodeMap,
   canonicalSetCode,
@@ -163,10 +164,31 @@ async function main() {
       c.image_small, c.image_large, c.attributes);
   }
 
+  // Search index, populated from the rows actually inserted (a card skipped as a
+  // duplicate card_id must not get an index entry). `rowid` is the join key back to
+  // `cards`, so this has to run after the card inserts and inside the same
+  // transaction. Read the count back as a self-check: a silently short index would
+  // show up as cards that can't be searched for, which is hard to spot later.
+  const insertFts = db.prepare(`INSERT INTO cards_fts (rowid, text) VALUES (?,?)`);
+  const searchRows = db
+    .prepare(
+      `SELECT c.rowid AS rowid, c.name AS name, s.name AS set_name, s.ptcgo_code AS ptcgo_code,
+              c.number AS number, s.printed_total AS printed_total
+         FROM cards c JOIN sets s ON c.set_id = s.id`,
+    )
+    .all() as unknown as Array<SearchableCard & { rowid: number }>;
+  for (const r of searchRows) insertFts.run(r.rowid, searchText(r));
+  if (searchRows.length !== seen.size) {
+    throw new Error(
+      `search index covers ${searchRows.length} of ${seen.size} cards — every card must be searchable`,
+    );
+  }
+
   const groups = new Set(cardRows.map((c) => c.equivalence_key)).size;
   const now = new Date().toISOString();
   for (const [k, v] of [
     ["norm_version", NORM_VERSION],
+    ["search_index", SEARCH_INDEX_VERSION],
     ["source_tag", SOURCE_TAG],
     ["source", `${SOURCE_TAG}:api.tcgdex.net/v2/en`],
     ["generated_at", now],
@@ -187,6 +209,7 @@ async function main() {
   log(`  equivalence groups: ${groups}  (${multiPrint} span >1 printing → cross-printing "copies")`);
   if (skipped) log(`  skipped:            ${skipped} cards with an unmappable category`);
   if (unowned) log(`  unowned:            ${unowned} cards not listed under any fetched set`);
+  log(`  search index:       ${SEARCH_INDEX_VERSION} over ${searchRows.length} cards`);
   log(`  norm_version:       ${NORM_VERSION}`);
   log(`  source:             ${SOURCE_TAG}`);
   log(`  elapsed:            ${((Date.now() - t0) / 1000).toFixed(1)}s`);

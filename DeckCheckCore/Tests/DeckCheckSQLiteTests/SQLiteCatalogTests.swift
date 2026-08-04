@@ -3,16 +3,19 @@ import SQLite3
 @testable import DeckCheckSQLite
 import DeckCheckCore
 
-final class SQLiteCatalogTests: XCTestCase {
-    var path: String!
-
-    override func setUpWithError() throws {
-        path = NSTemporaryDirectory() + "gapcheck-\(UUID().uuidString).sqlite"
+/// Builds the shared test snapshot. `withSearchIndex` mirrors what
+/// `tools/build-catalog` writes: the contentless trigram `cards_fts` table, populated
+/// with the same apostrophe-folded, lowercased text the builder stamps in.
+enum CatalogFixture {
+    static func make(withSearchIndex: Bool) throws -> String {
+        let path = NSTemporaryDirectory() + "gapcheck-\(UUID().uuidString).sqlite"
         var db: OpaquePointer?
-        XCTAssertEqual(sqlite3_open(path, &db), SQLITE_OK)
+        guard sqlite3_open(path, &db) == SQLITE_OK else {
+            throw SQLiteCatalogError.cannotOpen(path: path, message: "open failed")
+        }
         defer { sqlite3_close(db) }
 
-        let ddl = """
+        var ddl = """
         CREATE TABLE sets(id TEXT PRIMARY KEY, name TEXT, ptcgo_code TEXT, printed_total INTEGER, release_date TEXT);
         CREATE TABLE cards(card_id TEXT, set_id TEXT, number TEXT, name TEXT, supertype TEXT,
           subtypes TEXT, equivalence_key TEXT, standard_legal INTEGER, expanded_legal INTEGER,
@@ -24,7 +27,35 @@ final class SQLiteCatalogTests: XCTestCase {
           ('ptcg:obf-197','obf','197','Pidgeot ex','Pokémon','["Stage 2","ex"]','pidgeot',1,1,'G',NULL,NULL,'{"hp":"280"}'),
           ('ptcg:paf-233','paf','233','Arven''s Mabosstiff ex','Pokémon','[]','arvenmabo',1,1,'H',NULL,NULL,'{}');
         """
-        XCTAssertEqual(sqlite3_exec(db, ddl, nil, nil, nil), SQLITE_OK)
+
+        if withSearchIndex {
+            // Same shape and same folding as tools/build-catalog/src/build-catalog.ts:
+            // every apostrophe variant dropped, lowercased, one field per line.
+            ddl += """
+            \nCREATE VIRTUAL TABLE cards_fts USING fts5(text, content='', tokenize='trigram case_sensitive 0');
+            INSERT INTO cards_fts(rowid, text)
+            SELECT c.rowid,
+                   lower(replace(replace(replace(replace(c.name, char(8217), ''), char(8216), ''),
+                                         char(700), ''), char(39), ''))
+                   || char(10) || lower(s.name)
+                   || char(10) || lower(coalesce(s.ptcgo_code, ''))
+                   || char(10) || lower(c.number)
+                   || char(10) || lower(c.number || '/' || coalesce(s.printed_total, ''))
+              FROM cards c JOIN sets s ON c.set_id = s.id;
+            """
+        }
+        guard sqlite3_exec(db, ddl, nil, nil, nil) == SQLITE_OK else {
+            throw SQLiteCatalogError.cannotOpen(path: path, message: String(cString: sqlite3_errmsg(db)))
+        }
+        return path
+    }
+}
+
+final class SQLiteCatalogTests: XCTestCase {
+    var path: String!
+
+    override func setUpWithError() throws {
+        path = try CatalogFixture.make(withSearchIndex: false)
     }
 
     override func tearDownWithError() throws {
@@ -146,6 +177,10 @@ final class SQLiteCatalogTests: XCTestCase {
         XCTAssertTrue(cat.cards(equivalenceKey: "nope").isEmpty)
     }
 
+    func testUnindexedSnapshotReportsNoSearchIndex() throws {
+        XCTAssertFalse(try SQLiteCatalog(path: path).hasSearchIndex)
+    }
+
     func testAllCardsEnumeratesEveryPrinting() throws {
         let cat = try SQLiteCatalog(path: path)
         let all = cat.allCards()
@@ -157,5 +192,92 @@ final class SQLiteCatalogTests: XCTestCase {
         XCTAssertEqual(index.count, 4)
         let charOBF = try XCTUnwrap(index.first { $0[0] == "ptcg:obf-125" })
         XCTAssertEqual(charOBF, ["ptcg:obf-125", "Charizard ex", "Obsidian Flames", "OBF", "125", "197", "char"])
+    }
+}
+
+/// The FTS5 search index (docs/performance.md). The contract is that it changes only
+/// how fast search is, never what it returns — so most of this is a parity check
+/// against the same fixture without the index.
+final class SQLiteCatalogSearchIndexTests: XCTestCase {
+    private var indexedPath: String!
+    private var plainPath: String!
+    private var indexed: SQLiteCatalog!
+    private var plain: SQLiteCatalog!
+
+    override func setUpWithError() throws {
+        indexedPath = try CatalogFixture.make(withSearchIndex: true)
+        plainPath = try CatalogFixture.make(withSearchIndex: false)
+        indexed = try SQLiteCatalog(path: indexedPath)
+        plain = try SQLiteCatalog(path: plainPath)
+    }
+
+    override func tearDownWithError() throws {
+        indexed = nil
+        plain = nil
+        try? FileManager.default.removeItem(atPath: indexedPath)
+        try? FileManager.default.removeItem(atPath: plainPath)
+    }
+
+    func testIndexIsDetected() {
+        XCTAssertTrue(indexed.hasSearchIndex)
+        XCTAssertFalse(plain.hasSearchIndex)
+    }
+
+    /// Every query the unindexed path is tested with, plus the awkward ones, must give
+    /// the same answer through the index. This is the whole safety argument for the
+    /// change: if a query ever diverges, the index is wrong, not just slow.
+    func testIndexedResultsMatchTheScanExactly() {
+        let queries = [
+            "char", "charizard", "CHARIZARD", "PIDGEOT", "nothing",
+            "zard",                       // infix — a prefix tokenizer would miss this
+            "Arven\u{2019}s Mabosstiff",  // curly (iOS smart quote)
+            "Arven's Mabosstiff",         // straight
+            "Arvens Mabosstiff",          // none
+            "Obsidian Flames", "OBF 125", "Charizard PAF", "125/197",
+            "Charizard ZZZ",              // all terms must match → empty
+            "ex",                         // shorter than a trigram → scan fallback
+            "Charizard ex",               // mixed: one indexed token, one scanned
+            "125", "obf", "  char  ",
+        ]
+        for q in queries {
+            let a = indexed.searchByName(q, rowLimit: 100).map(\.cardId).sorted()
+            let b = plain.searchByName(q, rowLimit: 100).map(\.cardId).sorted()
+            XCTAssertEqual(a, b, "search diverged for \(q.debugDescription)")
+        }
+    }
+
+    func testInfixSubstringMatches() {
+        // The reason the index uses the trigram tokenizer: "zard" has to find
+        // "Charizard". `unicode61` (the FTS5 default) returns nothing here.
+        XCTAssertEqual(indexed.searchByName("zard", rowLimit: 100).count, 2)
+    }
+
+    func testTokensTooShortToIndexStillMatch() {
+        // "ex" is two characters — below the trigram minimum, so it falls back to the
+        // scan rather than silently matching nothing.
+        XCTAssertEqual(indexed.searchByName("ex", rowLimit: 100).count, 4)
+    }
+
+    func testMixedShortAndIndexedTokensAreAnded() {
+        // "charizard" narrows via the index, "ex" is ANDed on as a LIKE over what's left.
+        XCTAssertEqual(indexed.searchByName("charizard ex", rowLimit: 100).map(\.cardId).sorted(),
+                       ["ptcg:obf-125", "ptcg:paf-234"])
+        XCTAssertTrue(indexed.searchByName("charizard zz", rowLimit: 100).isEmpty)
+    }
+
+    func testRowLimitCapsTheIndexedPath() {
+        XCTAssertEqual(indexed.searchByName("char", rowLimit: 1).count, 1)
+    }
+
+    func testQuoteInQueryDoesNotBreakTheMatchExpression() {
+        // A stray double quote would end the FTS5 string literal early if unescaped,
+        // turning the rest of the query into syntax. Escaped, a quote is just another
+        // character to match on — and no card name contains one, so both paths agree
+        // on "nothing", which is the point: no crash, no divergence.
+        for q in ["chari\"zard", "\"charizard\"", "\""] {
+            XCTAssertEqual(indexed.searchByName(q, rowLimit: 100).map(\.cardId),
+                           plain.searchByName(q, rowLimit: 100).map(\.cardId),
+                           "search diverged for \(q.debugDescription)")
+        }
     }
 }
