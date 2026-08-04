@@ -27,6 +27,24 @@ final class AppModel: ObservableObject {
         await runSheetGapCheck()
     }
 
+    /// Mark a deck built / not built. Applies locally first so the toggle moves under
+    /// the finger, then writes the directive into the deck's Sheet tab; a failed write
+    /// rolls the local state back rather than leaving the two out of step.
+    func setDeckBuilt(_ built: Bool, for deck: DeckList) async -> String? {
+        decks.setBuilt(built, for: deck, catalog: catalog.lookup)
+        guard sheets.isConnected else {
+            decks.revertBuilt(for: deck, catalog: catalog.lookup)
+            return "Connect your Sheet to change this."
+        }
+        do {
+            try await sheets.setDeckBuilt(deck, built: built)
+            return nil
+        } catch {
+            decks.revertBuilt(for: deck, catalog: catalog.lookup)
+            return "Couldn't update “\(deck.name)”: \((error as? LocalizedError)?.errorDescription ?? "\(error)")"
+        }
+    }
+
     /// Save a decklist as a new `Deck:` tab, then refresh reservations. Returns a
     /// status line for the caller to show. (Used by "Add as deck" in the gap-checker.)
     func addDeck(name: String, decklist: String) async -> String {

@@ -102,6 +102,21 @@ Each such tab shows up under **Decks** with a **Buildable N/total · short N** s
 Standard-only filter). Decks also **reserve** the cards they use, which is what drives the
 "in use / free" numbers in Cards.
 
+### Built decks vs. ideas
+
+Not every deck on the list is actually sleeved — some are "I'd like to build this one
+day". Those shouldn't make their cards look unavailable.
+
+Each deck has a **Counts against my card totals** toggle (in the deck's detail, or swipe
+right on the row in the list). Turn it off and the deck is marked **Idea**: it still
+gap-checks exactly as before, but it reserves nothing, so its cards stay free for the
+decks you've actually built.
+
+The setting lives in the deck's own tab as a line reading `#built: no`, which you can
+also add or change by hand from a laptop. DeckCheck's decklist parser ignores any line
+that doesn't start with a quantity, so it sits harmlessly alongside the cards. A deck
+with no such line counts as built — nothing changes for tabs you already have.
+
 You don't have to create these tabs by hand — the **Gap Check** tab has an **Add as
 deck** button (below) that writes one for you.
 

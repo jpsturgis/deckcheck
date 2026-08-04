@@ -176,9 +176,31 @@ final class GoogleSheetsService: ObservableObject {
                 .filter { !$0.isEmpty }
                 .joined(separator: "\n")
             let name = String(title.dropFirst(GoogleSheets.deckTabPrefix.count)).trimmingCharacters(in: .whitespaces)
-            decks.append(DeckList(name: name, text: text))
+            decks.append(DeckList(name: name, text: text, tabTitle: title))
         }
         return decks
+    }
+
+    /// Flip a deck's `#built:` directive in its own tab — the Sheet is the source of
+    /// truth for it, so this survives a reinstall and is editable by hand.
+    ///
+    /// Writes one cell rather than rewriting the tab: read column A, find the existing
+    /// directive line, and overwrite it (or append past the last row if there isn't
+    /// one). That keeps the decklist itself untouched and the revision history quiet.
+    func setDeckBuilt(_ deck: DeckList, built: Bool) async throws {
+        guard let ref = sheetRef else { throw Fail("Connect your Inventory sheet first.") }
+        let token = try await self.token()
+        let data = try await http.execute(GoogleSheets.readTabRequest(
+            spreadsheetId: ref.spreadsheetId, title: deck.tabTitle, accessToken: token))
+        let columnA = try GoogleSheets.parseValues(data).map { $0.first ?? "" }
+
+        // 1-based A1 row: the existing directive, else one past the last used row.
+        let row = (DeckDirectives.lineIndex(of: DeckDirectives.builtKey, in: columnA) ?? columnA.count) + 1
+        _ = try await http.execute(GoogleSheets.writeRangeRequest(
+            spreadsheetId: ref.spreadsheetId,
+            range: "'\(deck.tabTitle)'!A\(row)",
+            values: [[DeckDirectives.builtLine(built)]],
+            accessToken: token))
     }
 
     // ── sheet gap-check (app-driven) ──────────────────────────────

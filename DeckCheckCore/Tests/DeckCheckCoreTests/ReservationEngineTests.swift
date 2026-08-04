@@ -45,6 +45,31 @@ final class ReservationEngineTests: XCTestCase {
         XCTAssertEqual(r.decks(forKey: "char"), ["Dupes"])   // deck listed once
     }
 
+    func testUnbuiltDeckReservesNothing() {
+        // A deck that's an idea, not a stack of sleeves: it should still gap-check
+        // (that's elsewhere), but its cards stay free for the decks you've built.
+        let idea = DeckList(name: "Someday", text: """
+        #built: no
+        4 Charizard ex OBF 125
+        """)
+        XCTAssertFalse(idea.isBuilt)
+        XCTAssertTrue(ReservationEngine.compute(decks: [idea], catalog: catalog).isEmpty)
+    }
+
+    func testOnlyBuiltDecksContributeToASharedGroup() {
+        let built = DeckList(name: "Built", text: "4 Charizard ex OBF 125")
+        let idea = DeckList(name: "Idea", text: "#built: no\n3 Charizard ex PAF 234")
+        let r = ReservationEngine.compute(decks: [built, idea], catalog: catalog)
+        XCTAssertEqual(r.reserved(forKey: "char"), 4)      // not 7
+        XCTAssertEqual(r.decks(forKey: "char"), ["Built"])
+    }
+
+    func testDirectiveLineIsNotParsedAsACard() {
+        let deck = DeckList(name: "D", text: "#built: yes\n4 Charizard ex OBF 125")
+        XCTAssertEqual(DecklistParser.parse(deck.text).count, 1)
+        XCTAssertEqual(ReservationEngine.compute(decks: [deck], catalog: catalog).reserved(forKey: "char"), 4)
+    }
+
     func testEmptyAndNoDecks() {
         XCTAssertTrue(ReservationEngine.compute(decks: [], catalog: catalog).isEmpty)
         XCTAssertTrue(ReservationEngine.compute(decks: [DeckList(name: "Blank", text: "")], catalog: catalog).isEmpty)

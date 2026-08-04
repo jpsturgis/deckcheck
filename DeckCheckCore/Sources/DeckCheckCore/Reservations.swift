@@ -14,8 +14,26 @@ import Foundation
 public struct DeckList: Equatable {
     public let name: String
     public let text: String
-    public init(name: String, text: String) {
-        self.name = name; self.text = text
+    /// The tab this came from, e.g. "Deck: Charizard ex". Kept verbatim so writing back
+    /// never has to guess at the original spacing.
+    public let tabTitle: String
+    /// Whether the deck is physically assembled. An unbuilt deck — one that's an idea
+    /// rather than a stack of sleeves — still gap-checks, but reserves nothing, so its
+    /// cards stay free for the decks you have actually built. Read from a `#built:`
+    /// line in the tab (see `DeckDirectives`); true when absent.
+    public let isBuilt: Bool
+
+    public init(name: String, text: String, tabTitle: String? = nil, isBuilt: Bool? = nil) {
+        self.name = name
+        self.text = text
+        self.tabTitle = tabTitle ?? "\(GoogleSheets.deckTabPrefix) \(name)"
+        self.isBuilt = isBuilt ?? DeckDirectives.isBuilt(text)
+    }
+
+    /// A copy with `isBuilt` overridden — how the app applies a toggle optimistically
+    /// while the write to the Sheet is still in flight.
+    public func setting(isBuilt: Bool) -> DeckList {
+        DeckList(name: name, text: text, tabTitle: tabTitle, isBuilt: isBuilt)
     }
 }
 
@@ -42,11 +60,14 @@ public enum ReservationEngine {
     /// functional group by the line quantity; basic-energy and unidentified lines
     /// reserve nothing (they aren't tracked / can't be resolved). A group used by the
     /// same deck on multiple lines counts that deck once in `deckNamesByKey`.
+    ///
+    /// Decks marked not built are skipped entirely — a deck you've sketched but haven't
+    /// sleeved shouldn't make its cards look unavailable.
     public static func compute(decks: [DeckList], catalog: CatalogLookup) -> Reservations {
         var reserved: [String: Int] = [:]
         var deckNames: [String: [String]] = [:]
 
-        for deck in decks {
+        for deck in decks where deck.isBuilt {
             var keysThisDeck: [String] = []
             var seen = Set<String>()
             for line in DecklistParser.parse(deck.text) {
