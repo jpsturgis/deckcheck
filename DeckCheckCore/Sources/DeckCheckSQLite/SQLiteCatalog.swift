@@ -6,7 +6,14 @@ import DeckCheckCore
 /// `tools/build-catalog`. Read-only; safe to share. The SwiftUI app can reuse
 /// this verbatim over the app-bundled snapshot; the `gapcheck` CLI uses it over a
 /// file path.
-public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
+///
+/// **Concurrency.** This is already reached from more than one thread — Scan resolves
+/// OCR results on a background task while views query the same connection on the main
+/// thread — so the sharing is stated here rather than left accidental. It's safe
+/// because the connection is opened read-only, both stored properties are immutable,
+/// and Apple's SQLite is built in serialized mode, which mutexes a connection
+/// internally. `@unchecked` because none of that is something the compiler can see.
+public final class SQLiteCatalog: CatalogLookup, CatalogSearching, @unchecked Sendable {
     private let db: OpaquePointer
 
     /// Whether this snapshot carries the `cards_fts` search index. Detected rather
