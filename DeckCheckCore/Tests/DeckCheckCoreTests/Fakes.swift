@@ -80,7 +80,22 @@ enum Fixture {
         equivalenceKey: "dupB", standardLegal: true, expandedLegal: true, regulationMark: nil,
         printedTotal: 500, hp: "60")
 
+    // Basic energy as the *catalog* carries it — canonical name, supertype .energy.
+    // A decklist can spell the same card "Basic {R} Energy MEE 2"; either way it must
+    // auto-satisfy rather than resolve to this row and be reported as a gap.
+    static let fireEnergyMEE = CatalogCard(cardId: "ptcg:mee-2", setId: "mee",
+        setName: "Mega Evolution Energy", ptcgoCode: "MEE", number: "2", name: "Fire Energy",
+        supertype: .energy, equivalenceKey: "energy-fire", standardLegal: true, expandedLegal: true,
+        regulationMark: nil, printedTotal: 8, releaseDate: "2025/09/25")
+
+    // Special energy IS tracked — it must never be mistaken for basic energy.
+    static let reversalEnergy = CatalogCard(cardId: "ptcg:par-192", setId: "par",
+        setName: "Paradox Rift", ptcgoCode: "PAR", number: "192", name: "Reversal Energy",
+        supertype: .energy, equivalenceKey: "energy-reversal", standardLegal: true,
+        expandedLegal: true, regulationMark: "H", printedTotal: 182, releaseDate: "2023/11/03")
+
     static let catalog = FakeCatalog(all: [
         charOBF, charPAF, ionoPAL, ionoPAF, bossRCL, bossPAL, dupA, dupB, ralts,
+        fireEnergyMEE, reversalEnergy,
     ])
 }

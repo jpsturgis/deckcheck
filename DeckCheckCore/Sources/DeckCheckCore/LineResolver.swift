@@ -17,13 +17,13 @@ public enum LineResolver {
             // set code + number (the primary path)
             if let code = line.setCode,
                let card = uniqueByKey(catalog.cards(setCode: code, number: number)) {
-                return ResolvedLine(parsed: line, resolution: .resolved(card))
+                return ResolvedLine(parsed: line, resolution: resolution(for: card))
             }
             // fall back to name + number (code unreadable / variant)
             let wanted = Normalize.name(line.name)
             let byNumber = catalog.cards(number: number).filter { Normalize.name($0.name) == wanted }
             if let card = uniqueByKey(byNumber) {
-                return ResolvedLine(parsed: line, resolution: .resolved(card))
+                return ResolvedLine(parsed: line, resolution: resolution(for: card))
             }
         }
 
@@ -31,6 +31,18 @@ public enum LineResolver {
             parsed: line,
             resolution: .unidentified(reason: "no unique printing for \"\(line.raw)\"")
         )
+    }
+
+    /// A resolved printing, except that basic energy auto-satisfies however the line
+    /// spelled it. The name check above catches the forms we know about; this catches
+    /// the rest, because the *catalog's* name for the printing the line resolved to is
+    /// always the canonical "Fire Energy". Without it, any spelling TCG Live invents
+    /// resolves to a real card and gets reported as a gap for a card nobody tracks.
+    static func resolution(for card: CatalogCard) -> LineResolution {
+        if card.supertype == .energy, let energy = BasicEnergy.match(card.name) {
+            return .basicEnergy(name: energy)
+        }
+        return .resolved(card)
     }
 
     /// Collapse candidate printings to one *iff* they share a single equivalence

@@ -73,6 +73,25 @@ final class GapCheckerTests: XCTestCase {
         XCTAssertEqual(r.deckTotal, 12)
     }
 
+    /// Regression: a real decklist line. The symbol spelling meant the line resolved
+    /// to the MEE 2 Fire Energy printing and came back as "5 missing" — a buy-list
+    /// entry for basic energy, which is never tracked.
+    func testEnergySymbolLineIsAutoSatisfiedNotMissing() {
+        let deck = """
+        4 Charizard ex OBF 125
+        5 Basic {R} Energy MEE 2
+        """
+        let owned = [OwnedCard(cardId: "ptcg:obf-125", equivalenceKey: "char", qty: 4)]
+        let r = GapChecker.check(decklist: deck, owned: owned, catalog: catalog)
+
+        XCTAssertEqual(r.basicEnergyQty, 5)
+        XCTAssertTrue(r.missing.isEmpty)
+        XCTAssertFalse(r.entries.contains { $0.name.contains("Energy") })
+        XCTAssertEqual(r.buildableQty, 9)   // 4 owned + 5 auto-satisfied
+        XCTAssertEqual(r.shortTotal, 0)
+        XCTAssertEqual(TCGplayerExport.massEntry(r), "")
+    }
+
     func testUnidentifiedBucketedAndExcludedFromBuildable() {
         let deck = """
         4 Charizard ex OBF 125

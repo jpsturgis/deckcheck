@@ -69,13 +69,24 @@ final class SearchServiceTests: XCTestCase {
     }
 
     func testMatchesBySetCode() {
-        // "MEG" is Ralts's set code — no name term at all.
-        XCTAssertEqual(SearchService.search(query: "MEG", owned: [], catalog: catalog).map(\.name), ["Ralts"])
+        // "MEE" is the energy set's code — no name term at all.
+        XCTAssertEqual(SearchService.search(query: "MEE", owned: [], catalog: catalog).map(\.name),
+                       ["Fire Energy"])
     }
 
     func testMatchesBySetName() {
-        // "mega evolution" — two tokens, both matching the set name.
-        XCTAssertEqual(SearchService.search(query: "mega evolution", owned: [], catalog: catalog).map(\.name), ["Ralts"])
+        // "mega evolution" — two tokens, both matching the set name. The fixture holds
+        // two sets that start that way ("Mega Evolution" / "Mega Evolution Energy",
+        // which is the real-world pairing), and tokens match as substrings, so both
+        // come back — ordered by card name.
+        XCTAssertEqual(SearchService.search(query: "mega evolution", owned: [], catalog: catalog).map(\.name),
+                       ["Fire Energy", "Ralts"])
+    }
+
+    func testExtraTokenNarrowsAcrossSimilarSetNames() {
+        // ...and one more token narrows it: only Ralts is #5.
+        XCTAssertEqual(SearchService.search(query: "mega evolution 5", owned: [], catalog: catalog).map(\.name),
+                       ["Ralts"])
     }
 
     func testNamePlusNumberNarrowsToPrinting() {
