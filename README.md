@@ -112,20 +112,23 @@ OAuth client needs your bundle id.
 open ios/DeckCheck.xcodeproj
 ```
 
+- Set a **unique Bundle Identifier** (Apple requires it to be unique to sign). Copy
+  `ios/Config/Local.xcconfig.example` → `ios/Config/Local.xcconfig` and change
+  `DECKCHECK_BUNDLE_ID` to e.g. `com.yourname.deckcheck`. **Note this value — step 3
+  needs it.**
 - Select the **DeckCheck** target → **Signing & Capabilities** → check **Automatically
   manage signing** → pick your **Team** (your free Apple ID; add it under Xcode →
   Settings → Accounts if it isn't listed). You **must** select a Team here — the app
   won't build without one.
-- Set a **unique Bundle Identifier** (Apple requires it to be unique to sign): change
-  `com.example.DeckCheck` to e.g. `com.yourname.deckcheck`. **Note this value — step 3
-  needs it.**
 - Confirm `catalog.sqlite` is in the **DeckCheck** target (the file-system-synchronized
   group picks it up once it's in the folder).
 
-  <sub>Picking a Team writes your Team ID into the project file — fine for your own copy.
-  If you'll commit a fork and want to keep your Team ID out of git, put it in
-  `ios/Config/Local.xcconfig` (copy the `.example`) instead; you still pick the Team in
-  Xcode once so it can provision your device.</sub>
+  <sub>`Local.xcconfig` is git-ignored, so your bundle id and Team ID never land in a
+  tracked file — worth it even if you never push a fork, since it keeps `git status`
+  clean. You can set both in Xcode's UI instead if you prefer; Xcode then writes them
+  into `project.pbxproj`, which *is* tracked. Setting `DEVELOPMENT_TEAM` in
+  `Local.xcconfig` as well stops that; you still pick the Team in Xcode once so it can
+  provision your device.</sub>
 
 **3. Set up your own Google OAuth client** (~10 min, one-time) — follow
 [`docs/setup/google-oauth-client.md`](docs/setup/google-oauth-client.md), using the
@@ -154,14 +157,11 @@ and adds one Google permission — see
 ## Develop & test
 
 ```sh
-# Pure engines — fast, no device or Google account needed:
-cd DeckCheckCore
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
+# Everything CI runs — core tests + an app compile:
+tools/check.sh
 
-# Compile-check the app:
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
-  -project ios/DeckCheck.xcodeproj -scheme DeckCheck \
-  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+# Just the pure engines (fast inner loop, no device or Google account needed):
+tools/check.sh core
 
 # Run the gap-check / search engines from the laptop over a catalog snapshot:
 swift run gapcheck --help
@@ -169,6 +169,9 @@ swift run gapcheck --help
 
 The design pattern throughout: build testable logic in `DeckCheckCore` first, keep the
 device shell thin.
+
+Sending a change? **[CONTRIBUTING.md](CONTRIBUTING.md)** covers the branch/commit
+conventions and how they fit around on-device testing.
 
 ## Support
 
