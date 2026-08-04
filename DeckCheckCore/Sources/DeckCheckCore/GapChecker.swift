@@ -49,21 +49,39 @@ public enum GapChecker {
             ownedIdsByKey[o.equivalenceKey, default: []].insert(o.cardId)
         }
 
+        let bridge = errataIndex(requiredByKey: requiredByKey, ownedByKey: ownedByKey,
+                                 ownedIdsByKey: ownedIdsByKey, catalog: catalog)
+
         // ---- one entry per required equivalence group ----
         var entries: [GapEntry] = []
         for (key, required) in requiredByKey {
             guard let rep = repByKey[key] else { continue }
             let owned = ownedByKey[key] ?? 0
-            let short = max(0, required - owned)
-            let status: CardStatus = owned == 0 ? .missing : (short == 0 ? .have : .short)
+
+            // Only reach for the bridge when the exact group can't cover the line.
+            var errataQty = 0
+            var errataPrintings: [CatalogCard] = []
+            if owned < required, let group = ErrataBridge.groupKey(rep) {
+                for candidate in bridge[group] ?? [] where candidate.key != key {
+                    errataQty += candidate.qty
+                    errataPrintings.append(contentsOf: candidate.cards)
+                }
+                errataPrintings = errataPrintings.orderedNewestFirst()
+            }
+
+            let effective = owned + errataQty
+            let short = max(0, required - effective)
+            let status: CardStatus = effective == 0 ? .missing : (short == 0 ? .have : .short)
 
             let requiredIds = requiredIdsByKey[key] ?? []
             let ownedIds = ownedIdsByKey[key] ?? []
             let differentPrinting = owned > 0 && !requiredIds.isSubset(of: ownedIds)
 
             var ownedNoLegal = false
-            if let lens, owned > 0 {
-                let anyLegal = ownedIds.contains { id in
+            if let lens, effective > 0 {
+                // A bridged printing is a copy you could sleeve, so it counts here too.
+                let bridgedIds = Set(errataPrintings.map(\.cardId))
+                let anyLegal = ownedIds.union(bridgedIds).contains { id in
                     guard let c = catalog.card(byId: id) else { return false }
                     return lens == .standard ? c.standardLegal : c.expandedLegal
                 }
@@ -74,7 +92,8 @@ public enum GapChecker {
                 name: rep.name, equivalenceKey: key,
                 requiredQty: required, ownedQty: owned, shortQty: short,
                 status: status, differentPrinting: differentPrinting,
-                ownedNoLegalPrinting: ownedNoLegal, representative: rep
+                ownedNoLegalPrinting: ownedNoLegal, representative: rep,
+                errataOwnedQty: errataQty, errataPrintings: errataPrintings
             ))
         }
 
@@ -84,14 +103,50 @@ public enum GapChecker {
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
 
-        let coverable = requiredByKey.reduce(0) { $0 + min($1.value, ownedByKey[$1.key] ?? 0) }
-        let shortTotal = requiredByKey.reduce(0) { $0 + max(0, $1.value - (ownedByKey[$1.key] ?? 0)) }
+        let coverable = entries.reduce(0) { $0 + min($1.requiredQty, $1.effectiveOwnedQty) }
+        let shortTotal = entries.reduce(0) { $0 + $1.shortQty }
 
         return GapReport(
             entries: entries, unidentified: unidentified, basicEnergyQty: basicEnergyQty,
             deckTotal: deckTotal, buildableQty: basicEnergyQty + coverable,
             shortTotal: shortTotal, legalityLens: lens
         )
+    }
+
+    /// Owned copies indexed by `ErrataBridge` group — the lookup that lets an
+    /// under-covered line find the same card printed with different wording.
+    ///
+    /// Built only when some line is actually under-covered, and only over keys you
+    /// *own*, so it costs one catalog read per owned group in the worst case and
+    /// nothing at all for a deck you can already build.
+    ///
+    /// Caveat: if a decklist cites two wordings of the same card as separate lines,
+    /// both entries see the same owned copies. That over-counts, but it needs a list
+    /// that already breaks the four-of rule, and it can only under-report a gap.
+    private static func errataIndex(
+        requiredByKey: [String: Int],
+        ownedByKey: [String: Int],
+        ownedIdsByKey: [String: Set<String>],
+        catalog: CatalogLookup
+    ) -> [String: [(key: String, qty: Int, cards: [CatalogCard])]] {
+        let underCovered = requiredByKey.contains { key, need in (ownedByKey[key] ?? 0) < need }
+        guard underCovered else { return [:] }
+
+        var index: [String: [(key: String, qty: Int, cards: [CatalogCard])]] = [:]
+        for (key, qty) in ownedByKey where qty > 0 {
+            // Every printing in an equivalence group shares a name and card type, so
+            // any of them settles the group. Display, though, has to name the printings
+            // actually in the binder — not the group's newest.
+            guard let rep = catalog.cards(equivalenceKey: key).first,
+                  let group = ErrataBridge.groupKey(rep) else { continue }
+            let ownedCards = (ownedIdsByKey[key] ?? []).compactMap { catalog.card(byId: $0) }
+            index[group, default: []].append((
+                key: key, qty: qty,
+                // A linked promo's `manual:` id resolves nowhere; fall back to the group.
+                cards: ownedCards.isEmpty ? [rep] : ownedCards
+            ))
+        }
+        return index
     }
 
     private static func rank(_ s: CardStatus) -> Int {

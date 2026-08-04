@@ -15,14 +15,14 @@ final class SQLiteCatalogTests: XCTestCase {
         let ddl = """
         CREATE TABLE sets(id TEXT PRIMARY KEY, name TEXT, ptcgo_code TEXT, printed_total INTEGER, release_date TEXT);
         CREATE TABLE cards(card_id TEXT, set_id TEXT, number TEXT, name TEXT, supertype TEXT,
-          equivalence_key TEXT, standard_legal INTEGER, expanded_legal INTEGER, regulation_mark TEXT,
-          image_small TEXT, image_large TEXT, attributes TEXT);
+          subtypes TEXT, equivalence_key TEXT, standard_legal INTEGER, expanded_legal INTEGER,
+          regulation_mark TEXT, image_small TEXT, image_large TEXT, attributes TEXT);
         INSERT INTO sets VALUES ('obf','Obsidian Flames','OBF',197,'2023/08/11'), ('paf','Paldean Fates','PAF',91,'2024/01/26');
         INSERT INTO cards VALUES
-          ('ptcg:obf-125','obf','125','Charizard ex','Pokémon','char',1,1,'G','http://img/obf125.png','http://img/obf125_lg.png','{"hp":"330"}'),
-          ('ptcg:paf-234','paf','234','Charizard ex','Pokémon','char',1,1,'H',NULL,NULL,'{"hp":"330"}'),
-          ('ptcg:obf-197','obf','197','Pidgeot ex','Pokémon','pidgeot',1,1,'G',NULL,NULL,'{"hp":"280"}'),
-          ('ptcg:paf-233','paf','233','Arven''s Mabosstiff ex','Pokémon','arvenmabo',1,1,'H',NULL,NULL,'{}');
+          ('ptcg:obf-125','obf','125','Charizard ex','Pokémon','["Stage 2","ex"]','char',1,1,'G','http://img/obf125.png','http://img/obf125_lg.png','{"hp":"330"}'),
+          ('ptcg:paf-234','paf','234','Charizard ex','Pokémon','["Stage 2","ex"]','char',1,1,'H',NULL,NULL,'{"hp":"330"}'),
+          ('ptcg:obf-197','obf','197','Pidgeot ex','Pokémon','["Stage 2","ex"]','pidgeot',1,1,'G',NULL,NULL,'{"hp":"280"}'),
+          ('ptcg:paf-233','paf','233','Arven''s Mabosstiff ex','Pokémon','[]','arvenmabo',1,1,'H',NULL,NULL,'{}');
         """
         XCTAssertEqual(sqlite3_exec(db, ddl, nil, nil, nil), SQLITE_OK)
     }
@@ -116,6 +116,13 @@ final class SQLiteCatalogTests: XCTestCase {
         let cat = try SQLiteCatalog(path: path)
         XCTAssertEqual(cat.card(byId: "ptcg:obf-125")?.hp, "330")
         XCTAssertNil(cat.card(byId: "ptcg:paf-233")?.hp)   // no hp key → nil
+    }
+
+    func testSubtypesParsedFromJSONArray() throws {
+        // subtypes is a JSON array column; it feeds ErrataBridge's grouping.
+        let cat = try SQLiteCatalog(path: path)
+        XCTAssertEqual(cat.card(byId: "ptcg:obf-125")?.subtypes, ["Stage 2", "ex"])
+        XCTAssertEqual(cat.card(byId: "ptcg:paf-233")?.subtypes, [])   // empty array → []
     }
 
     func testPrintedTotalLookupAndNewColumns() throws {

@@ -111,11 +111,18 @@ Paste a decklist and see exactly what you need to build it.
 
 1. Paste a **TCG Live / Limitless** decklist into the box and tap **Check**.
 2. You get a **gap-first report**: a **Buildable N/total** headline, then **❌ Missing /
-   ⚠️ Short / ✅ Have** (🔁 marks a card you own via a *different* printing), plus a
-   copy-ready **TCGplayer buy list** for just the shortfall.
-3. **Couldn't identify a line?** (usually a promo.) The report lists it with a
+   ⚠️ Short / 📝 Different wording / ✅ Have** (🔁 marks a card you own via a *different*
+   printing), plus a copy-ready **TCGplayer buy list** for just the shortfall.
+3. **📝 Different wording** is for reprints whose text was reworded — Energy Retrieval
+   reads "Put 2 basic Energy cards…" on older printings and "Put **up to** 2…" on
+   current ones. The game plays every printing with the most recent text, so these
+   count toward the build and stay off the buy list. They get their own section rather
+   than being folded into ✅ Have, because the wording really does differ and it's worth
+   a glance. Only Trainers and Energy are matched this way — two Pokémon that share a
+   name are usually different cards.
+4. **Couldn't identify a line?** (usually a promo.) The report lists it with a
    **Resolve** action — search and pick the printing, and the report recomputes.
-4. **Add as deck** saves the list as a `Deck: <name>` tab in your Sheet (so it reserves
+5. **Add as deck** saves the list as a `Deck: <name>` tab in your Sheet (so it reserves
    cards and appears under Decks). Requires your Sheet connected.
 
 **Two other ways to run a gap-check:**

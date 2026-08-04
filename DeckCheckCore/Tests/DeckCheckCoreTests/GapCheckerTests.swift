@@ -92,6 +92,96 @@ final class GapCheckerTests: XCTestCase {
         XCTAssertEqual(TCGplayerExport.massEntry(r), "")
     }
 
+    // MARK: - errata bridge
+
+    /// Regression: the deck cites the old Energy Retrieval wording, the binder has the
+    /// new one. Previously "1 missing" plus a buy-list line for a card already owned.
+    func testRewordedReprintCountsAndIsReportedSeparately() {
+        let deck = "1 Energy Retrieval AOR 99"
+        let owned = [OwnedCard(cardId: "ptcg:svi-171", equivalenceKey: "eretr-new", qty: 4)]
+        let r = GapChecker.check(decklist: deck, owned: owned, catalog: catalog)
+
+        let entry = try! XCTUnwrap(r.entries.first)
+        XCTAssertEqual(entry.status, .have)
+        XCTAssertEqual(entry.ownedQty, 0)           // nothing in the exact group…
+        XCTAssertEqual(entry.errataOwnedQty, 4)     // …but four of the reworded printing
+        XCTAssertEqual(entry.shortQty, 0)
+        // The printing in the binder, not the newest in its group (CRI 108 is newer).
+        XCTAssertEqual(entry.errataPrintings.map(\.cardId), ["ptcg:svi-171"])
+
+        // Its own bucket, not folded into have — the wording really does differ.
+        XCTAssertEqual(r.differentWording.map(\.name), ["Energy Retrieval"])
+        XCTAssertTrue(r.missing.isEmpty)
+        XCTAssertTrue(r.have.isEmpty)
+
+        XCTAssertEqual(r.shortTotal, 0)
+        XCTAssertEqual(r.buildableQty, 1)
+        XCTAssertEqual(TCGplayerExport.massEntry(r), "")   // nothing to buy
+    }
+
+    /// The other half of the report: Air Balloon SSH 213 vs the modern reprint, where
+    /// the split is only how the source spells the energy symbol.
+    func testBridgedButStillShortStillBuysTheDifference() {
+        let deck = "4 Air Balloon SSH 213"
+        let owned = [OwnedCard(cardId: "ptcg:meg-166", equivalenceKey: "balloon-new", qty: 1)]
+        let r = GapChecker.check(decklist: deck, owned: owned, catalog: catalog)
+
+        let entry = try! XCTUnwrap(r.entries.first)
+        XCTAssertEqual(entry.status, .short)
+        XCTAssertEqual(entry.errataOwnedQty, 1)
+        XCTAssertEqual(entry.shortQty, 3)           // you own one; buy the other three
+        XCTAssertEqual(r.differentWording.map(\.name), ["Air Balloon"])
+        XCTAssertTrue(r.short.isEmpty)              // reported under differentWording
+        XCTAssertEqual(TCGplayerExport.massEntry(r), "3 Air Balloon [SSH] 213/202")
+    }
+
+    /// Exact-group copies are used first; the bridge only makes up the difference.
+    func testExactCopiesPreferredOverBridged() {
+        let deck = "4 Energy Retrieval AOR 99"
+        let owned = [
+            OwnedCard(cardId: "ptcg:aor-99", equivalenceKey: "eretr-old", qty: 3),
+            OwnedCard(cardId: "ptcg:svi-171", equivalenceKey: "eretr-new", qty: 2),
+        ]
+        let r = GapChecker.check(decklist: deck, owned: owned, catalog: catalog)
+        let entry = try! XCTUnwrap(r.entries.first)
+        XCTAssertEqual(entry.ownedQty, 3)
+        XCTAssertEqual(entry.errataOwnedQty, 2)
+        XCTAssertEqual(entry.status, .have)
+        XCTAssertEqual(entry.shortQty, 0)
+    }
+
+    /// A fully-covered line never consults the bridge, so an exactly-owned card is
+    /// still plain "have" even when a reworded printing sits in the collection.
+    func testNoBridgeWhenTheExactGroupAlreadyCovers() {
+        let deck = "1 Energy Retrieval AOR 99"
+        let owned = [
+            OwnedCard(cardId: "ptcg:aor-99", equivalenceKey: "eretr-old", qty: 2),
+            OwnedCard(cardId: "ptcg:svi-171", equivalenceKey: "eretr-new", qty: 4),
+        ]
+        let r = GapChecker.check(decklist: deck, owned: owned, catalog: catalog)
+        XCTAssertEqual(r.have.map(\.name), ["Energy Retrieval"])
+        XCTAssertTrue(r.differentWording.isEmpty)
+        XCTAssertEqual(r.entries.first?.errataOwnedQty, 0)
+    }
+
+    /// Pokémon are excluded on purpose: same name, different card.
+    func testPokemonAreNotBridgedByName() {
+        // Own Dup Mon "B"; the deck wants Dup Mon "A". Different attacks, not a swap.
+        let owned = [OwnedCard(cardId: "ptcg:bbb-100", equivalenceKey: "dupB", qty: 4)]
+        let r = GapChecker.check(decklist: "1 Dup Mon AAA 100", owned: owned, catalog: catalog)
+        XCTAssertEqual(r.missing.map(\.name), ["Dup Mon"])
+        XCTAssertTrue(r.differentWording.isEmpty)
+    }
+
+    /// With the lens on, a bridged printing that *is* legal clears the warning.
+    func testLegalityLensConsidersBridgedPrintings() {
+        // Deck cites AOR 99 (not Standard-legal); you own SVI 171, which is.
+        let owned = [OwnedCard(cardId: "ptcg:svi-171", equivalenceKey: "eretr-new", qty: 4)]
+        let r = GapChecker.check(decklist: "1 Energy Retrieval AOR 99", owned: owned,
+                                 catalog: catalog, lens: .standard)
+        XCTAssertFalse(try! XCTUnwrap(r.entries.first).ownedNoLegalPrinting)
+    }
+
     func testUnidentifiedBucketedAndExcludedFromBuildable() {
         let deck = """
         4 Charizard ex OBF 125

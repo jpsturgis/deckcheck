@@ -94,8 +94,39 @@ enum Fixture {
         supertype: .energy, equivalenceKey: "energy-reversal", standardLegal: true,
         expandedLegal: true, regulationMark: "H", printedTotal: 182, releaseDate: "2023/11/03")
 
+    // ── errata splits: same card, reworded, so the hash puts them in different groups ──
+    // Both pairs are real. Energy Retrieval AOR 99 reads "Put 2 basic Energy cards…"
+    // while SVI 171 reads "Put **up to** 2…"; Air Balloon SSH 213's text spells the
+    // energy symbol out as "ColorlessColorless" where the modern reprint uses "{C}{C}".
+    static let energyRetrievalAOR = CatalogCard(cardId: "ptcg:aor-99", setId: "aor",
+        setName: "Ancient Origins", ptcgoCode: "AOR", number: "99", name: "Energy Retrieval",
+        supertype: .trainer, equivalenceKey: "eretr-old", standardLegal: false, expandedLegal: true,
+        regulationMark: nil, printedTotal: 98, releaseDate: "2015/08/12", subtypes: ["Item"])
+    static let energyRetrievalSVI = CatalogCard(cardId: "ptcg:svi-171", setId: "svi",
+        setName: "Scarlet & Violet", ptcgoCode: "SVI", number: "171", name: "Energy Retrieval",
+        supertype: .trainer, equivalenceKey: "eretr-new", standardLegal: true, expandedLegal: true,
+        regulationMark: "G", printedTotal: 198, releaseDate: "2023/03/31", subtypes: ["Item"])
+
+    /// A second, *newer* printing in the same reworded group — so a test that owns the
+    /// SVI copy can prove the report names the printing in the binder rather than
+    /// whichever one the group happens to sort first.
+    static let energyRetrievalCRI = CatalogCard(cardId: "ptcg:cri-108", setId: "cri",
+        setName: "Chaos Rising", ptcgoCode: "CRI", number: "108", name: "Energy Retrieval",
+        supertype: .trainer, equivalenceKey: "eretr-new", standardLegal: true, expandedLegal: true,
+        regulationMark: "I", printedTotal: 86, releaseDate: "2026/05/22", subtypes: ["Item"])
+
+    static let airBalloonSSH = CatalogCard(cardId: "ptcg:ssh-213", setId: "ssh",
+        setName: "Sword & Shield", ptcgoCode: "SSH", number: "213", name: "Air Balloon",
+        supertype: .trainer, equivalenceKey: "balloon-old", standardLegal: false, expandedLegal: true,
+        regulationMark: nil, printedTotal: 202, releaseDate: "2020/02/07", subtypes: ["Tool"])
+    static let airBalloonMEG = CatalogCard(cardId: "ptcg:meg-166", setId: "meg",
+        setName: "Mega Evolution", ptcgoCode: "MEG", number: "166", name: "Air Balloon",
+        supertype: .trainer, equivalenceKey: "balloon-new", standardLegal: true, expandedLegal: true,
+        regulationMark: "I", printedTotal: 132, releaseDate: "2025/09/26", subtypes: ["Tool"])
+
     static let catalog = FakeCatalog(all: [
         charOBF, charPAF, ionoPAL, ionoPAF, bossRCL, bossPAL, dupA, dupB, ralts,
         fireEnergyMEE, reversalEnergy,
+        energyRetrievalAOR, energyRetrievalSVI, energyRetrievalCRI, airBalloonSSH, airBalloonMEG,
     ])
 }

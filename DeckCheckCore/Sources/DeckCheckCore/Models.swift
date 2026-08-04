@@ -21,6 +21,7 @@ public struct CatalogCard: Equatable {
     public let number: String          // collector number, no leading zeros
     public let name: String
     public let supertype: Supertype
+    public let subtypes: [String]      // Item / Tool / Supporter / Stadium, Basic / Stage 2, …
     public let equivalenceKey: String  // functional-equivalence group
     public let standardLegal: Bool     // per-printing legality overlay
     public let expandedLegal: Bool
@@ -35,10 +36,10 @@ public struct CatalogCard: Equatable {
                 number: String, name: String, supertype: Supertype, equivalenceKey: String,
                 standardLegal: Bool, expandedLegal: Bool, regulationMark: String? = nil,
                 printedTotal: Int? = nil, imageSmall: String? = nil, imageLarge: String? = nil,
-                releaseDate: String? = nil, hp: String? = nil) {
+                releaseDate: String? = nil, hp: String? = nil, subtypes: [String] = []) {
         self.cardId = cardId; self.setId = setId; self.setName = setName
         self.ptcgoCode = ptcgoCode; self.number = number; self.name = name
-        self.supertype = supertype; self.equivalenceKey = equivalenceKey
+        self.supertype = supertype; self.subtypes = subtypes; self.equivalenceKey = equivalenceKey
         self.standardLegal = standardLegal; self.expandedLegal = expandedLegal
         self.regulationMark = regulationMark
         self.printedTotal = printedTotal; self.imageSmall = imageSmall; self.imageLarge = imageLarge
@@ -123,7 +124,11 @@ public struct GapEntry: Equatable {
     public let name: String
     public let equivalenceKey: String
     public let requiredQty: Int
+    /// Copies owned in this exact equivalence group.
     public let ownedQty: Int
+    /// Copies owned of what `ErrataBridge` says is the same card printed with different
+    /// wording. Counted toward the deck, but reported separately — see `GapReport`.
+    public let errataOwnedQty: Int
     public let shortQty: Int
     public let status: CardStatus
     /// You own the functional card but via a *different printing* than the deck lists.
@@ -132,14 +137,22 @@ public struct GapEntry: Equatable {
     public let ownedNoLegalPrinting: Bool
     /// A representative catalog printing for display / export naming.
     public let representative: CatalogCard
+    /// The differently-worded printings you own, newest first — so the report can show
+    /// *which* copies it's counting.
+    public let errataPrintings: [CatalogCard]
+
+    /// Copies that can go in the deck: exact group plus bridged wording variants.
+    public var effectiveOwnedQty: Int { ownedQty + errataOwnedQty }
 
     public init(name: String, equivalenceKey: String, requiredQty: Int, ownedQty: Int,
                 shortQty: Int, status: CardStatus, differentPrinting: Bool,
-                ownedNoLegalPrinting: Bool, representative: CatalogCard) {
+                ownedNoLegalPrinting: Bool, representative: CatalogCard,
+                errataOwnedQty: Int = 0, errataPrintings: [CatalogCard] = []) {
         self.name = name; self.equivalenceKey = equivalenceKey
         self.requiredQty = requiredQty; self.ownedQty = ownedQty; self.shortQty = shortQty
         self.status = status; self.differentPrinting = differentPrinting
         self.ownedNoLegalPrinting = ownedNoLegalPrinting; self.representative = representative
+        self.errataOwnedQty = errataOwnedQty; self.errataPrintings = errataPrintings
     }
 }
 
@@ -153,9 +166,14 @@ public struct GapReport: Equatable {
     public let shortTotal: Int            // total copies you still need
     public let legalityLens: LegalityFormat?
 
+    // The four display buckets are mutually exclusive and together cover `entries`.
+    // Anything the errata bridge contributed to gets its own bucket rather than being
+    // folded into have/short, so a wording difference is always visible.
     public var missing: [GapEntry] { entries.filter { $0.status == .missing } }
-    public var short: [GapEntry] { entries.filter { $0.status == .short } }
-    public var have: [GapEntry] { entries.filter { $0.status == .have } }
+    public var short: [GapEntry] { entries.filter { $0.status == .short && $0.errataOwnedQty == 0 } }
+    public var have: [GapEntry] { entries.filter { $0.status == .have && $0.errataOwnedQty == 0 } }
+    /// Covered — wholly or partly — by a printing whose wording differs (see `ErrataBridge`).
+    public var differentWording: [GapEntry] { entries.filter { $0.errataOwnedQty > 0 } }
 
     public init(entries: [GapEntry], unidentified: [ParsedLine], basicEnergyQty: Int,
                 deckTotal: Int, buildableQty: Int, shortTotal: Int, legalityLens: LegalityFormat?) {

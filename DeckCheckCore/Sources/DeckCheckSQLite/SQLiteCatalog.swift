@@ -109,7 +109,7 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
     SELECT c.card_id, c.set_id, s.name, s.ptcgo_code, c.number, c.name, c.supertype,
            c.equivalence_key, c.standard_legal, c.expanded_legal, c.regulation_mark,
            c.image_small, s.printed_total, c.image_large, s.release_date,
-           json_extract(c.attributes, '$.hp')
+           json_extract(c.attributes, '$.hp'), c.subtypes
     FROM cards c JOIN sets s ON c.set_id = s.id
     WHERE
     """
@@ -139,6 +139,14 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
         func intOrNil(_ i: Int32) -> Int? {
             sqlite3_column_type(stmt, i) == SQLITE_NULL ? nil : Int(sqlite3_column_int64(stmt, i))
         }
+        /// `subtypes` is a JSON array of strings. Anything unparseable reads as empty,
+        /// which only costs precision in the errata bridge — never correctness.
+        func stringArray(_ i: Int32) -> [String] {
+            guard let raw = text(i), let data = raw.data(using: .utf8),
+                  let parsed = try? JSONSerialization.jsonObject(with: data) as? [String]
+            else { return [] }
+            return parsed
+        }
 
         return CatalogCard(
             cardId: text(0) ?? "",
@@ -156,7 +164,8 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
             imageSmall: text(11),
             imageLarge: text(13),
             releaseDate: text(14),
-            hp: text(15)
+            hp: text(15),
+            subtypes: stringArray(16)
         )
     }
 }

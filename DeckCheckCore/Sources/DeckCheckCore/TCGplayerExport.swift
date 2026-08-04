@@ -1,8 +1,9 @@
 import Foundation
 
 /// Turn a gap report into a TCGplayer **Mass Entry** buy list: the
-/// shortfall only — Missing at full quantity, Short at the delta. Cards satisfied by a
-/// functional different printing are already owned, so they're `.have` and excluded.
+/// shortfall only. Cards satisfied by a functional different printing are already
+/// owned, so they're `.have` and excluded — as are copies the errata bridge matched to
+/// a differently-worded printing you own, which is the same card in play.
 ///
 /// Line format is `<qty> <name> [<SETCODE>] <number>/<printedTotal>` — the form Mass
 /// Entry accepts for Pokémon (e.g. `1 Ralts [MEG] 058/132`): the set code is bracketed,
@@ -11,11 +12,15 @@ import Foundation
 /// here.) A printing with no code / total falls back to a looser form.
 public enum TCGplayerExport {
     /// Newline-joined Mass Entry lines — paste into TCGplayer Mass Entry.
+    ///
+    /// One rule: every entry still short, at its shortfall. `entries` is already sorted
+    /// missing → short → have, so the list stays gap-first. (A missing entry owns
+    /// nothing, so its shortfall *is* the required quantity.)
     public static func massEntry(_ report: GapReport) -> String {
-        var lines: [String] = []
-        for e in report.missing { lines.append(entryLine(e.requiredQty, e.representative)) }
-        for e in report.short { lines.append(entryLine(e.shortQty, e.representative)) }
-        return lines.joined(separator: "\n")
+        report.entries
+            .filter { $0.shortQty > 0 }
+            .map { entryLine($0.shortQty, $0.representative) }
+            .joined(separator: "\n")
     }
 
     /// A link to TCGplayer search for a card. Passing the set name and collector
