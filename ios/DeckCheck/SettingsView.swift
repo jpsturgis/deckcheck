@@ -51,6 +51,26 @@ struct SettingsView: View {
 
                 if sheets.sheetRef != nil {
                     Section {
+                        Button {
+                            Task {
+                                await sheets.migrateDerivedColumns(catalog: catalog.lookup,
+                                                                   normVersion: catalog.normVersion)
+                                await model.syncNow()
+                            }
+                        } label: {
+                            HStack {
+                                Label("Re-check card grouping", systemImage: "arrow.triangle.merge")
+                                if sheets.busy { Spacer(); ProgressView() }
+                            }
+                        }
+                        .disabled(sheets.busy || !catalog.isLoaded)
+                    } header: {
+                        Text("Card grouping")
+                    } footer: {
+                        Text("Your Sheet stores which cards count as copies of each other. Rows written by an older version — or by poke-check, which left the version blank — can be grouped by an out-of-date rule, so a card you own reads as missing in a gap-check. This re-derives that from the current catalog. It only touches the two machine columns, and it's safe to run any time.")
+                    }
+
+                    Section {
                         if sheets.browserGapCheckEnabled {
                             Button {
                                 Task { await sheets.refreshCatalogIndex(catalog: catalog.lookup) }

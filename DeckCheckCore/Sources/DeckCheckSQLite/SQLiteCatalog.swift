@@ -163,6 +163,25 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
         + " OR c.number LIKE ? COLLATE NOCASE"
         + " OR (c.number || '/' || s.printed_total) LIKE ? COLLATE NOCASE)"
 
+    // MARK: Provenance
+
+    /// A value from the snapshot's `meta` table, or nil if absent. Tolerates a
+    /// snapshot with no `meta` table at all (the test fixtures, older builds).
+    public func metaValue(_ key: String) -> String? {
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "SELECT value FROM meta WHERE key = ?1", -1, &stmt, nil) == SQLITE_OK
+        else { return nil }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, key, -1, SQLITE_TRANSIENT)
+        guard sqlite3_step(stmt) == SQLITE_ROW, let c = sqlite3_column_text(stmt, 0) else { return nil }
+        return String(cString: c)
+    }
+
+    /// The normalization version every `equivalence_key` in this snapshot was computed
+    /// under. An inventory row stamped with anything else — including nothing at all —
+    /// has a key that predates this catalog. See `InventoryMigration`.
+    public var normVersion: String? { metaValue("norm_version") }
+
     // MARK: Full enumeration
 
     /// Every card in the snapshot — used to push the slim resolution index into the

@@ -13,6 +13,11 @@ final class Catalog: ObservableObject {
     @Published private(set) var lookup: (any CatalogLookup & CatalogSearching)?
     @Published private(set) var status: String = "Loading catalog…"
 
+    /// The normalization version this snapshot's `equivalence_key`s were computed
+    /// under. An inventory row stamped with anything else has a key from an older
+    /// catalog — see `InventoryMigration`.
+    @Published private(set) var normVersion: String?
+
     init() { load() }
 
     var isLoaded: Bool { lookup != nil }
@@ -25,11 +30,16 @@ final class Catalog: ObservableObject {
             return
         }
         do {
-            lookup = try SQLiteCatalog(path: url.path)
-            status = "Catalog loaded"
+            let snapshot = try SQLiteCatalog(path: url.path)
+            lookup = snapshot
+            normVersion = snapshot.normVersion
+            status = snapshot.hasSearchIndex
+                ? "Catalog loaded"
+                : "Catalog loaded (no search index — rebuild it with tools/build-catalog for fast search)"
         } catch {
             status = "Catalog failed to open: \(error)"
             lookup = nil
+            normVersion = nil
         }
     }
 }

@@ -135,6 +135,10 @@ public enum SyncOp: Equatable {
     case appendRow(InventoryRow)
     /// Delete a row whose qty reached 0. `deleteDimension`.
     case deleteRow(sheetRowNumber: Int, cardId: String)
+    /// Rewrite an existing row's derived machine columns after a normalization
+    /// change (`InventoryMigration`). Touches only `equivalence_key` and
+    /// `norm_version` — never qty, never the human columns.
+    case setDerived(sheetRowNumber: Int, cardId: String, equivalenceKey: String, normVersion: String)
 }
 
 public enum SyncPlanner {
