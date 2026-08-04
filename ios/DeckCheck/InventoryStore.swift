@@ -11,6 +11,11 @@ final class InventoryStore: ObservableObject {
     @Published private(set) var lastSyncedAt: Date?
     @Published var lastError: String?
 
+    /// Bumped whenever `rows` changes. Lets views key expensive derived work
+    /// (per-deck gap reports) off "did the inventory actually change" rather than off
+    /// "did SwiftUI re-evaluate body".
+    @Published private(set) var revision = 0
+
     private let fileURL: URL
 
     init() {
@@ -46,6 +51,7 @@ final class InventoryStore: ObservableObject {
     func refresh(fetch: () async throws -> [InventoryRow]) async {
         do {
             rows = try await fetch()
+            revision += 1
             lastSyncedAt = Date()
             lastError = nil
             save()
@@ -60,6 +66,7 @@ final class InventoryStore: ObservableObject {
         guard let data = try? Data(contentsOf: fileURL),
               let cached = try? JSONDecoder().decode([InventoryRow].self, from: data) else { return }
         rows = cached
+        revision += 1
     }
 
     private func save() {

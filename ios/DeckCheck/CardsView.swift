@@ -14,6 +14,10 @@ struct CardsView: View {
     enum Scope: String, CaseIterable { case owned = "Owned", all = "All" }
     @State private var scope: Scope = .owned
     @State private var query = ""
+    /// `query` settled. Catalog search is a full-table LIKE scan (~22 ms against a
+    /// 23k-card snapshot on a Mac, more on a phone), so running it per keystroke made
+    /// typing feel heavy. See docs/performance.md.
+    @State private var debouncedQuery = ""
     @State private var addingPromo = false
 
     /// Show only Standard-legal cards. Off by default → your whole collection shows.
@@ -28,7 +32,11 @@ struct CardsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        // Computed ONCE per pass and threaded down. It used to be read three times per
+        // body evaluation — by the empty-state check, the ForEach, and the header — each
+        // one redoing the full grouping and sort.
+        let items = self.items
+        return NavigationStack {
             VStack(spacing: 0) {
                 VStack(spacing: 8) {
                     Picker("Scope", selection: $scope) {
@@ -58,10 +66,17 @@ struct CardsView: View {
                 .padding([.horizontal, .top])
                 .padding(.bottom, 6)
 
-                content
+                content(items)
             }
             .navigationTitle("Cards")
             .searchable(text: $query, prompt: scope == .owned ? "Your cards — name, set, or number" : "Search — name, set, or number")
+            .task(id: query) {
+                // Let typing settle before re-querying. Clearing is instant — that
+                // should feel immediate.
+                if !query.isEmpty { try? await Task.sleep(for: .milliseconds(180)) }
+                guard !Task.isCancelled else { return }
+                debouncedQuery = query
+            }
             .scrollDismissesKeyboard(.immediately)
             .refreshable { await model.syncNow() }
             .toolbar {
@@ -101,50 +116,65 @@ struct CardsView: View {
         Task { await model.syncNow() }
     }
 
-    @ViewBuilder private var content: some View {
+    @ViewBuilder private func content(_ items: [CardListItem]) -> some View {
         if scope == .all && catalog.lookup == nil {
             ContentUnavailableView("No catalog", systemImage: "tray", description: Text(catalog.status))
-        } else if let empty = emptyMessage {
+        } else if let empty = emptyMessage(items) {
             ContentUnavailableView(empty.title, systemImage: empty.icon, description: Text(empty.detail))
         } else {
             List {
                 Section {
-                    ForEach(items) { item in
-                        if let cardId = item.thumbnailCardId {
-                            NavigationLink {
-                                CardDetailView(cardId: cardId)
-                            } label: {
-                                CardRow(item: item, imageURL: thumbnail(item))
-                            }
-                        } else {
-                            CardRow(item: item, imageURL: thumbnail(item))
-                        }
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        row(item)
+                            // Warm the art for rows about to scroll in. ~11 KB each and
+                            // immutable, so asking early is nearly free and removes the
+                            // visible load.
+                            .onAppear { prefetchAhead(of: index, in: items) }
                     }
                 } header: {
-                    Text(header)
+                    Text(header(items))
                 }
             }
             .listStyle(.plain)
         }
     }
 
-    private var emptyMessage: (title: String, icon: String, detail: String)? {
+    @ViewBuilder private func row(_ item: CardListItem) -> some View {
+        if let cardId = item.thumbnailCardId {
+            NavigationLink { CardDetailView(cardId: cardId) } label: {
+                CardRow(item: item, imageURL: item.thumbnailURL)
+            }
+        } else {
+            CardRow(item: item, imageURL: item.thumbnailURL)
+        }
+    }
+
+    private static let prefetchLookahead = 8
+
+    private func prefetchAhead(of index: Int, in items: [CardListItem]) {
+        let upper = min(index + Self.prefetchLookahead, items.count)
+        guard index + 1 < upper else { return }
+        CardImagePrefetch.warm(items[(index + 1)..<upper].map(\.thumbnailURL),
+                               size: CardArtSize.listThumb)
+    }
+
+    private func emptyMessage(_ items: [CardListItem]) -> (title: String, icon: String, detail: String)? {
         if items.isEmpty {
             switch scope {
             case .owned:
                 return inventory.rows.isEmpty
                     ? ("No inventory yet", "tray", "Add cards from Scan, then Sync. Pull down to refresh.")
-                    : ("No owned cards match", "magnifyingglass", "Nothing you own matches “\(query)”.")
+                    : ("No owned cards match", "magnifyingglass", "Nothing you own matches “\(debouncedQuery)”.")
             case .all:
-                return query.trimmingCharacters(in: .whitespaces).isEmpty
+                return debouncedQuery.trimmingCharacters(in: .whitespaces).isEmpty
                     ? ("Search all cards", "magnifyingglass", "Type a card name to search the whole catalog.")
-                    : ("No cards match", "magnifyingglass", "No cards match “\(query)”.")
+                    : ("No cards match", "magnifyingglass", "No cards match “\(debouncedQuery)”.")
             }
         }
         return nil
     }
 
-    private var header: String {
+    private func header(_ items: [CardListItem]) -> String {
         let cards = items.reduce(0) { $0 + $1.ownedCount }
         switch scope {
         case .owned:
@@ -157,19 +187,10 @@ struct CardsView: View {
         }
     }
 
-    private func thumbnail(_ item: CardListItem) -> String? {
-        if let cardId = item.thumbnailCardId, let img = catalog.lookup?.card(byId: cardId)?.imageSmall {
-            return img
-        }
-        // Manual promo (or an imageless printing): borrow the equivalent card's art via
-        // the functional group.
-        return catalog.lookup?.cards(equivalenceKey: item.id).lazy.compactMap(\.imageSmall).first
-    }
-
     // MARK: - sources
 
     private func ownedItems() -> [CardListItem] {
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let q = debouncedQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         var byKey: [String: [InventoryRow]] = [:]
         var order: [String] = []
         for row in inventory.rows where row.qty > 0 {
@@ -177,19 +198,36 @@ struct CardsView: View {
             if byKey[row.equivalence_key] == nil { order.append(row.equivalence_key) }
             byKey[row.equivalence_key, default: []].append(row)
         }
+
+        // Resolve every owned printing against the catalog ONCE, up front. The sort
+        // below used to look both sides up inside the comparator — two SQLite queries
+        // per comparison, so ~n log n queries per pass (measured at 60 ms for a
+        // 500-printing collection, and this ran three times per body evaluation). One
+        // pass over the rows gives both the release date the sort needs and the image
+        // URL the row needs. See docs/performance.md.
+        var cards: [String: CatalogCard] = [:]
+        if let lookup = catalog.lookup {
+            for rows in byKey.values {
+                for row in rows where cards[row.card_id] == nil {
+                    cards[row.card_id] = lookup.card(byId: row.card_id)
+                }
+            }
+        }
+
         return order.map { key -> CardListItem in
-            // Newest printing first; the sheet cache has no release date, so pull
-            // it from the catalog per printing. Rows the catalog can't place (manual
-            // promos) fall back to set/number ordering behind the dated ones.
+            // Newest printing first; the sheet cache has no release date, so it comes
+            // from the catalog. Rows the catalog can't place (manual promos) fall back
+            // to set/number ordering behind the dated ones.
             let printings = byKey[key]!.sorted { a, b in
-                let da = catalog.lookup?.card(byId: a.card_id)?.releaseDate ?? ""
-                let db = catalog.lookup?.card(byId: b.card_id)?.releaseDate ?? ""
+                let da = cards[a.card_id]?.releaseDate ?? ""
+                let db = cards[b.card_id]?.releaseDate ?? ""
                 if da != db { return da > db }
                 return (a.set, a.number) < (b.set, b.number)
             }
+            let first = printings.first
             return CardListItem(
                 id: key,
-                name: printings.first?.name ?? "—",
+                name: first?.name ?? "—",
                 ownedCount: printings.reduce(0) { $0 + $1.qty },
                 ownedPrintings: printings.map {
                     // A linked promo reads as its equivalent card's designation:
@@ -200,15 +238,23 @@ struct CardsView: View {
                     return CardListItem.Printing(id: $0.card_id, label: label)
                 },
                 printingCount: printings.count,
-                thumbnailCardId: printings.first?.card_id,
+                thumbnailCardId: first?.card_id,
                 formatLegal: nil,
-                isPromo: ManualEntry.isManual(printings.first?.card_id ?? ""),
-                reserved: decks.reserved(forKey: key)
+                isPromo: ManualEntry.isManual(first?.card_id ?? ""),
+                reserved: decks.reserved(forKey: key),
+                thumbnailURL: first.flatMap { cards[$0.card_id]?.imageSmall } ?? borrowedArt(forKey: key)
             )
         }
         .filter { legalityFormat == nil || ownedGroupIsLegal($0) }
         .filter { !freeOnly || $0.available > 0 }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// A manual promo (or an imageless printing) has no art of its own — borrow the
+    /// equivalent card's via the functional group. Only reached when the direct lookup
+    /// came up empty, which is rare.
+    private func borrowedArt(forKey key: String) -> String? {
+        catalog.lookup?.cards(equivalenceKey: key).lazy.compactMap(\.imageSmall).first
     }
 
     /// A linked promo's display designation — its *equivalent* catalog card's code +
@@ -244,7 +290,7 @@ struct CardsView: View {
     }
 
     private func allItems() -> [CardListItem] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = debouncedQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let lookup = catalog.lookup, !trimmed.isEmpty else { return [] }
         return SearchService.search(query: trimmed, owned: inventory.owned, catalog: lookup, lens: legalityFormat)
             .filter { legalityFormat == nil || $0.formatLegal == true }
@@ -262,7 +308,8 @@ struct CardsView: View {
                     printingCount: group.printings.count,
                     thumbnailCardId: group.representative.cardId,
                     formatLegal: group.formatLegal,
-                    reserved: decks.reserved(forKey: group.equivalenceKey)
+                    reserved: decks.reserved(forKey: group.equivalenceKey),
+                    thumbnailURL: group.representative.imageSmall
                 )
             }
     }
@@ -281,6 +328,8 @@ struct CardListItem: Identifiable {
     var isPromo = false
     /// Copies reserved by decks (the in-use feature); `available` is owned − reserved.
     var reserved = 0
+    /// Resolved when the item is built, so rendering a row costs no catalog reads.
+    var thumbnailURL: String?
     var available: Int { max(0, ownedCount - reserved) }
 }
 
@@ -315,21 +364,9 @@ private struct CardRow: View {
     }
 
     @ViewBuilder private var thumbnail: some View {
-        Group {
-            if let s = imageURL, let url = URL(string: s) {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFit()
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 4).fill(.quaternary)
-                }
-                .frame(width: 40, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-            } else {
-                RoundedRectangle(cornerRadius: 4).fill(.quaternary).frame(width: 40, height: 56)
+        CardImage(urlString: imageURL, size: CardArtSize.listThumb)
+            .overlay(alignment: .topTrailing) {
+                if item.isPromo { PromoBadge(compact: true).padding(2) }
             }
-        }
-        .overlay(alignment: .topTrailing) {
-            if item.isPromo { PromoBadge(compact: true).padding(2) }
-        }
     }
 }

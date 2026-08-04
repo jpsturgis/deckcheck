@@ -42,6 +42,14 @@ struct DecksView: View {
             }
             .navigationTitle("Decks")
             .refreshable { await model.syncNow() }
+            // Gap reports are computed here — when the decks, the inventory or the
+            // legality lens actually change — rather than per row per render.
+            .task(id: ReportInputs(decks: decks.revision,
+                                   inventory: inventory.revision,
+                                   standardOnly: standardOnly)) {
+                decks.refreshReports(owned: inventory.owned, catalog: catalog.lookup,
+                                     lens: standardOnly ? .standard : nil)
+            }
             .alert("Couldn’t update deck", isPresented: Binding(
                 get: { toggleError != nil }, set: { if !$0 { toggleError = nil } })
             ) {
@@ -53,7 +61,7 @@ struct DecksView: View {
     }
 
     private func row(_ deck: DeckList) -> some View {
-        let report = gapReport(for: deck, catalog: catalog, inventory: inventory, standardOnly: standardOnly)
+        let report = decks.report(for: deck)
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Text(deck.name).font(.body.weight(.medium))
@@ -136,11 +144,10 @@ struct DeckDetailView: View {
     }
 }
 
-/// Per-deck gap-check against your owned inventory, honoring the shared Standard filter.
-@MainActor
-private func gapReport(for deck: DeckList, catalog: Catalog, inventory: InventoryStore,
-                       standardOnly: Bool) -> GapReport? {
-    guard let lookup = catalog.lookup else { return nil }
-    return GapChecker.check(decklist: deck.text, owned: inventory.owned, catalog: lookup,
-                            lens: standardOnly ? .standard : nil)
+/// What the cached per-deck reports depend on. Any change here invalidates them; a
+/// plain `body` re-evaluation doesn't.
+private struct ReportInputs: Equatable {
+    let decks: Int
+    let inventory: Int
+    let standardOnly: Bool
 }

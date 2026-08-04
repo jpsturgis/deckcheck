@@ -22,6 +22,18 @@ final class DecksStore: ObservableObject {
     /// title. Persisted so a crash mid-write doesn't silently discard the user's intent.
     @Published private(set) var pendingBuilt: [String: Bool] = [:]
 
+    /// Per-deck gap reports, keyed by tab title.
+    ///
+    /// The Decks list used to run a full `GapChecker.check` — parse the decklist, then
+    /// resolve every line against the catalog — for each row, on every `body`
+    /// evaluation, including while scrolling. Computing it only when the inputs
+    /// actually change makes rendering a row free. See docs/performance.md.
+    @Published private(set) var reports: [String: GapReport] = [:]
+
+    /// Bumped whenever `decks` changes, so views can key derived work off real change
+    /// rather than off SwiftUI re-evaluating `body`.
+    @Published private(set) var revision = 0
+
     private let defaults = UserDefaults.standard
     private static let pendingKey = "decks.pendingBuilt"
 
@@ -43,6 +55,7 @@ final class DecksStore: ObservableObject {
             savePending()
 
             decks = fetched.map { $0.setting(isBuilt: pendingBuilt[$0.tabTitle] ?? $0.isBuilt) }
+            revision += 1
             recompute(catalog)
             lastError = nil
         } catch {
@@ -75,8 +88,24 @@ final class DecksStore: ObservableObject {
 
     // MARK: -
 
+    /// Recompute the per-deck gap reports. Called from a `.task(id:)` keyed on the
+    /// inputs, so it runs when the decks, the inventory, or the legality lens change —
+    /// not once per row per frame.
+    func refreshReports(owned: [OwnedCard], catalog: (any CatalogLookup)?, lens: LegalityFormat?) {
+        guard let catalog else { reports = [:]; return }
+        var out: [String: GapReport] = [:]
+        for deck in decks {
+            out[deck.tabTitle] = GapChecker.check(decklist: deck.text, owned: owned,
+                                                  catalog: catalog, lens: lens)
+        }
+        reports = out
+    }
+
+    func report(for deck: DeckList) -> GapReport? { reports[deck.tabTitle] }
+
     private func apply(isBuilt: Bool, to tabTitle: String, _ catalog: (any CatalogLookup)?) {
         decks = decks.map { $0.tabTitle == tabTitle ? $0.setting(isBuilt: isBuilt) : $0 }
+        revision += 1
         recompute(catalog)
     }
 
