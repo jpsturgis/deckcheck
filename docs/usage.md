@@ -96,9 +96,9 @@ Switch the scope to **Sets** for one row per set, newest first, each with a prog
 and an *N/total* count. The search bar filters by set name or TCG Live code, and
 **Standard only** narrows the list to sets still in the format.
 
-**Tap a set** for its **Missing** and **Have** lists, plus a **Copy buy list** button
-that puts every card you're missing from that set on the clipboard as a TCGplayer Mass
-Entry list — the same format the Gap Check buy list uses.
+**Tap a set** for a **Missing / Have** switch listing either side, plus a **Copy buy
+list** button that puts every card you're missing from that set on the clipboard as a
+TCGplayer Mass Entry list — the same format the Gap Check buy list uses.
 
 > **Sets count printings, not cards.** This is the one place in DeckCheck where
 > [functional equivalence](#a-few-concepts-first) is deliberately *not* used. A deck

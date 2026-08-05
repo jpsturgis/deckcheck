@@ -13,7 +13,7 @@
 
 /* Begin PBXFileReference section */
 		AA0000000000000000000001 /* DeckCheck.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeckCheck.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AB0000000000000000000001 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Signing.xcconfig; sourceTree = "<group>"; };
+		AB0000000000000000000001 /* Config/Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -37,7 +37,7 @@
 			isa = PBXGroup;
 			children = (
 				BB0000000000000000000001 /* DeckCheck */,
-				AB0000000000000000000001 /* Signing.xcconfig */,
+				AB0000000000000000000001 /* Config/Signing.xcconfig */,
 				CC0000000000000000000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -180,7 +180,7 @@
 		};
 		F10000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = AB0000000000000000000001 /* Signing.xcconfig */;
+			baseConfigurationReference = AB0000000000000000000001 /* Config/Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
@@ -210,7 +210,7 @@
 		};
 		F10000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = AB0000000000000000000001 /* Signing.xcconfig */;
+			baseConfigurationReference = AB0000000000000000000001 /* Config/Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;

@@ -15,6 +15,16 @@ struct SetDetailView: View {
     @State private var owned: [CatalogCard] = []
     @State private var copied = false
 
+    /// Missing and Have are two lists of the same kind, and a nearly-complete set puts
+    /// hundreds of Have rows between you and them. A scope switch beats stacked
+    /// sections — it's also what the Cards screen above already does.
+    @State private var scope: Scope = .missing
+    @State private var pickedInitialScope = false
+
+    enum Scope: String, CaseIterable { case missing = "Missing", have = "Have" }
+
+    private var shown: [CatalogCard] { scope == .missing ? missing : owned }
+
     var body: some View {
         List {
             if let progress {
@@ -40,21 +50,26 @@ struct SetDetailView: View {
                 } footer: {
                     Text("A TCGplayer Mass Entry list of everything you're missing from this set.")
                 }
-
-                Section("Missing (\(missing.count))") {
-                    ForEach(missing, id: \.cardId) { card in
-                        NavigationLink { CardDetailView(cardId: card.cardId) } label: {
-                            SetCardRow(card: card, owned: false)
-                        }
-                    }
-                }
             }
 
-            if !owned.isEmpty {
-                Section("Have (\(owned.count))") {
-                    ForEach(owned, id: \.cardId) { card in
+            Section {
+                Picker("Show", selection: $scope) {
+                    Text("Missing (\(missing.count))").tag(Scope.missing)
+                    Text("Have (\(owned.count))").tag(Scope.have)
+                }
+                .pickerStyle(.segmented)
+                .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+
+                if shown.isEmpty {
+                    Text(scope == .missing
+                         ? "Nothing missing — this set is complete."
+                         : "You don't have any cards from this set yet.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(shown, id: \.cardId) { card in
                         NavigationLink { CardDetailView(cardId: card.cardId) } label: {
-                            SetCardRow(card: card, owned: true)
+                            SetCardRow(card: card, owned: scope == .have)
                         }
                     }
                 }
@@ -76,6 +91,13 @@ struct SetDetailView: View {
         missing = all.filter { !ownedIds.contains($0.cardId) }
         owned = all.filter { ownedIds.contains($0.cardId) }
         copied = false
+
+        // A complete set would otherwise open on an empty Missing list. Only on first
+        // load — after that the switch is the user's, and a sync shouldn't move it.
+        if !pickedInitialScope {
+            pickedInitialScope = true
+            if missing.isEmpty && !owned.isEmpty { scope = .have }
+        }
     }
 
     private var buyList: String {
