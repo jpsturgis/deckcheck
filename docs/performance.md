@@ -148,10 +148,10 @@ having rows read the cached result.
 The five items below were named in the first pass and left undone. Four are now done
 or answered; one is a review rather than a change.
 
-Numbers in this half come from a synthetic catalog built to the real one's size
-(23,444 cards / 170 sets) and queried through SQLite directly, so they measure the
-*query* rather than the app. Treat them as relative. The scan measured 18–24 ms here
-against the 22 ms measured in-app above, which is close enough to trust the ratio.
+Numbers in this half are measured against a **real rebuilt catalog** — 23,444 cards /
+218 sets, built 2026-08-04 — queried through SQLite directly, so they measure the
+*query* rather than the app. The scan measures 20–23 ms here against the 22 ms measured
+in-app above, so the two agree.
 
 ## Search is indexed now
 
@@ -159,17 +159,24 @@ against the 22 ms measured in-app above, which is close enough to trust the rati
 23,444 rows, with no index that could help. The builder now writes an FTS5 index and
 the app queries it.
 
-| Query | Scan | Indexed |
-|---|---|---|
-| `char` | 18.5 ms | 1.2 ms |
-| `charizard ex` | 21.7 ms | 0.05 ms |
-| `obsidian flames` | 23.6 ms | 3.1 ms |
-| `125` | 22.3 ms | 0.8 ms |
-| `zard` | 18.4 ms | 1.2 ms |
+| Query | Scan | Indexed | Rows |
+|---|---|---|---|
+| `charizard` | 20.7 ms | **0.25 ms** | 125 |
+| `zard` | 20.3 ms | **0.18 ms** | 179 |
+| `charizard ex` | 22.5 ms | **0.28 ms** | 52 |
+| `obsidian flames` | 21.3 ms | **0.31 ms** | 230 |
+| `pikachu` | 20.4 ms | **0.29 ms** | 249 |
+| `125` | 21.0 ms | **0.08 ms** | 71 |
+| `ex` | 19.4 ms | *19.4 ms* | 2,885 |
 
-The remaining milliseconds on the broad queries are materializing and sorting a couple
-of thousand result rows, not searching — the narrow queries show what the lookup
-itself costs.
+Every row is a parity check as well as a timing: both paths return the same rows.
+
+`ex` is the exception by design — every token is shorter than a trigram, so there's
+nothing to look up and it stays a scan. `charizard ex` shows why that's rarely a
+problem: the index resolves `charizard` first and the `ex` LIKE then runs over 125
+surviving rows instead of 23,444.
+
+Index cost on the real catalog: **17 MB → 20 MB**.
 
 ### Why the trigram tokenizer, and what it costs
 
@@ -183,11 +190,11 @@ It isn't free:
 
 | | index size | `zard` |
 |---|---|---|
-| `unicode61` | +0.88 MB | 0 rows — wrong |
-| `trigram` | +4.01 MB | 782 rows — correct |
+| `unicode61` | +0.9 MB | 0 rows — wrong |
+| `trigram` | +3 MB | 179 rows — correct |
 
-On a ~6 MB snapshot that's a two-thirds bigger catalog. It buys behaviour parity, which
-is the right trade for something that ships inside the app.
+That's a ~18% bigger catalog (17 MB → 20 MB). It buys behaviour parity, which is the
+right trade for something that ships inside the app.
 
 Two consequences worth knowing:
 
@@ -268,6 +275,39 @@ if any blank-stamped row carries a key that doesn't match the current catalog, t
 card is silently failing to group with its other printings and reads as missing in a
 gap-check.
 
+### Previewing it: `gapcheck migrate`
+
+The write has to happen in the app — only the app holds the Google credentials. But the
+*plan* is pure, so the CLI can show it from a CSV export of the Inventory tab, without
+touching anything:
+
+```sh
+swift run gapcheck migrate --inventory ~/Downloads/Inventory.csv --list
+```
+
+Run against a real 554-row Sheet and the 2026-08-04 catalog:
+
+```
+stamped:
+  (blank)    185
+  v1         369
+
+plan:
+  regrouped   0     equivalence_key was wrong — these are mis-grouped today
+  restamped   185   key already correct, only the version stamp was stale
+  re-link     0     linked promos whose key no longer exists — needs a person
+  unknown     0     card_id not in this catalog — left untouched
+```
+
+The good news is the zero: those 185 blank-stamped rows were written by the same `v1`
+`resolve()`, so nothing is mis-grouped — the stamp is simply missing. Today the
+migration is hygiene rather than a repair. It stops being hygiene the moment
+`NORM_VERSION` moves, which is exactly what it's for.
+
+Worth noting all ten of that Sheet's hand-entered promos are *linked*, so they're the
+population that the un-migratable case applies to. They're fine right now (their keys
+still resolve), but a `NORM_VERSION` bump would strand every one of them.
+
 The pass touches only `equivalence_key` and `norm_version` — the person owns the rest
 of the row — and an up-to-date Sheet plans nothing, so it's safe to re-run.
 
@@ -308,5 +348,50 @@ lookup, and linked promos migrate like everything else.
     app on an OS update.
 - **Removing the search debounce.** Now defensible at ~1 ms; it's a feel change to
   judge on a phone, not a measurement.
-- **Root-causing the Air Balloon equivalence split** itself. The migration that
-  unblocked it is done; the `resolve.ts` root cause is still open.
+- **Fixing the Air Balloon equivalence split.** Root-caused now — see below. The
+  migration that unblocks shipping it is done; the `resolve.ts` change is still open.
+
+### The Air Balloon split, root-caused
+
+Air Balloon carries two equivalence keys across five printings:
+
+```
+8daffa9f84c9e271   SSH 156, SSH 213
+b56d0ef47582bea6   ASC 181, BLK 79, MEG 166
+```
+
+The cards are identical. The source text is not:
+
+```
+BLK 79   "The Retreat Cost of the Pokémon this card is attached to is {C}{C} less."
+SSH 156  "The Retreat Cost of the Pokémon this card is attached to is ColorlessColorless less."
+```
+
+TCGdex spells energy symbols out as words on Sword & Shield-era cards and uses brace
+tokens on newer ones. `normalizeText` folds the bracketed `[R]` form to `{r}` but has
+no rule for the spelled-out form, so the two normalize differently and hash apart.
+This is the "an errata that changes wording SPLITS equivalence" consequence documented
+in `resolve.ts` §4.2 — except it isn't an errata, it's an encoding inconsistency in
+the source, which makes it a bug rather than a designed tradeoff.
+
+The fix is a rule in `normalizeText` mapping the eleven spelled-out energy names to the
+same tokens `canonicalizeCost` already uses. Scope, measured across the whole catalog —
+card identities (name + supertype + subtypes) that are split today, but whose
+profile text becomes identical once energy words are folded:
+
+**21 identities**, all Sword & Shield-era: Air Balloon, Alolan Exeggutor V, Blanche,
+Candela, Dragonite VSTAR, Eternatus V, Eternatus VMAX, Flareon V, Galarian Articuno,
+Galarian Moltres, Galarian Sirfetch'd V, Galarian Zapdos, Grimmsnarl V, Hoopa V,
+Melmetal V, Origin Forme Dialga V, Origin Forme Dialga VSTAR, Rayquaza V, Spark,
+Vaporeon VMAX, Virizion V.
+
+So it's a real bug with a small, well-bounded blast radius — and it's worth knowing
+that the other ~1,600 multi-key identities in the catalog are *not* this. Most are
+genuinely different cards sharing a name across eras. Fixing this one rule shouldn't be
+expected to collapse them.
+
+Two cautions before writing the rule. It has to apply only where energy symbols are
+being rendered as words, and `Darkness`/`Metal`/`Water` are ordinary English that can
+appear in a card name or in prose. And because it changes keys, it must bump
+`NORM_VERSION` — which is what makes the migration above a prerequisite rather than a
+nicety.
