@@ -159,6 +159,37 @@ final class GoogleSheetsService: ObservableObject {
         }
     }
 
+    /// Replace a deck tab's contents with `text`, one line per row in column A.
+    ///
+    /// **Write first, then clear the tail.** The obvious implementation — clear the
+    /// column, then write — has a window where a dropped connection leaves the user
+    /// with an empty deck tab and no way back. Writing the new lines over the old ones
+    /// first means an interrupted update leaves a *superset* of the deck: possibly a
+    /// few stale rows at the bottom, never a lost decklist. Those trailing rows are
+    /// cleared in a second call, and if that one fails the next successful save fixes
+    /// it. Only column A is touched, so anything in B onward is left alone.
+    func writeDeck(_ deck: DeckList, text: String) async throws {
+        guard let ref = sheetRef else { throw Fail("Connect your Inventory sheet first.") }
+        let token = try await self.token()
+
+        let existing = try await http.execute(GoogleSheets.readTabRequest(
+            spreadsheetId: ref.spreadsheetId, title: deck.tabTitle, accessToken: token))
+        let previousRows = try GoogleSheets.parseValues(existing).count
+
+        let rows = text.components(separatedBy: "\n").map { [$0] }
+        _ = try await http.execute(GoogleSheets.writeRangeRequest(
+            spreadsheetId: ref.spreadsheetId,
+            range: "'\(deck.tabTitle)'!A1",
+            values: rows, accessToken: token))
+
+        if previousRows > rows.count {
+            _ = try await http.execute(GoogleSheets.clearRangeRequest(
+                spreadsheetId: ref.spreadsheetId,
+                range: "'\(deck.tabTitle)'!A\(rows.count + 1):A\(previousRows)",
+                accessToken: token))
+        }
+    }
+
     /// Read the hand-maintained "Deck: <name>" tabs into decklists (the in-use
     /// feature). Each tab's rows are joined back into TCG Live decklist text.
     func fetchDecks() async throws -> [DeckList] {
