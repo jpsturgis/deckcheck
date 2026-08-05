@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import DeckCheckCore
 
 /// The Decks tab: your hand-maintained `Deck: <name>` sheet tabs, each with a
@@ -101,7 +102,12 @@ struct DeckDetailView: View {
 
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var decks: DecksStore
+    @EnvironmentObject var catalog: Catalog
+    @AppStorage("standardOnly") private var standardOnly = false
+
     @State private var toggleError: String?
+    @State private var draft: String?
+    @State private var copied = false
 
     /// Read through the store so the toggle reflects pending state rather than the
     /// value captured when this view was pushed.
@@ -109,8 +115,51 @@ struct DeckDetailView: View {
         decks.decks.first { $0.tabTitle == deck.tabTitle } ?? deck
     }
 
+    private var violations: [DeckViolation] {
+        guard let lookup = catalog.lookup else { return [] }
+        return DeckValidator.validate(decklist: current.text, catalog: lookup,
+                                      lens: standardOnly ? .standard : nil)
+    }
+
     var body: some View {
         Form {
+            if !violations.isEmpty {
+                Section {
+                    ForEach(violations) { v in
+                        Label(v.message, systemImage: "exclamationmark.triangle")
+                            .font(.callout)
+                            .foregroundStyle(.orange)
+                    }
+                } header: {
+                    Text("Legality")
+                } footer: {
+                    Text("Deck legality only — whether you own the cards is the gap-check below.")
+                }
+            }
+
+            Section {
+                Button {
+                    draft = current.text
+                } label: {
+                    Label("Edit deck", systemImage: "square.and.pencil")
+                }
+                .disabled(catalog.lookup == nil || !model.sheets.isConnected)
+
+                Button {
+                    if let lookup = catalog.lookup {
+                        UIPasteboard.general.string =
+                            DecklistFormatter.tcgLive(decklist: current.text, catalog: lookup)
+                        copied = true
+                    }
+                } label: {
+                    Label(copied ? "Copied" : "Copy as TCG Live list",
+                          systemImage: copied ? "checkmark" : "doc.on.doc")
+                }
+                .disabled(catalog.lookup == nil)
+            } footer: {
+                Text("Copying rewrites the list into TCG Live import format — sections, counts and a total — leaving out comments and the “#built:” line.")
+            }
+
             Section {
                 Toggle(isOn: Binding(
                     get: { current.isBuilt },
@@ -134,6 +183,18 @@ struct DeckDetailView: View {
         }
         .navigationTitle(current.name)
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: current.text) { _, _ in copied = false }
+        .sheet(isPresented: Binding(
+            get: { draft != nil }, set: { if !$0 { draft = nil } })
+        ) {
+            NavigationStack {
+                DeckEditView(
+                    deck: current,
+                    draft: Binding(get: { draft ?? current.text }, set: { draft = $0 }),
+                    onDone: { draft = nil }
+                )
+            }
+        }
         .alert("Couldn’t update deck", isPresented: Binding(
             get: { toggleError != nil }, set: { if !$0 { toggleError = nil } })
         ) {

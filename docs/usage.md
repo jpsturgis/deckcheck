@@ -142,6 +142,47 @@ with no such line counts as built — nothing changes for tabs you already have.
 You don't have to create these tabs by hand — the **Gap Check** tab has an **Add as
 deck** button (below) that writes one for you.
 
+### Editing a deck
+
+**Edit deck** on a deck's detail screen opens its card lines with a **− / +** stepper on
+each. Swipe a line to delete it; **Add card** searches the catalog and inserts the
+printing you pick. A running **N cards · N lines** count sits above the list, and
+legality updates as you go.
+
+Nothing reaches your Sheet until you tap **Save**; **Cancel** discards the draft. Saving
+rewrites only column A of that deck's tab — **your comments, blank rows and the
+`#built:` line are preserved exactly**, because edits are applied to the tab's text
+surgically rather than by regenerating it. Anything you keep in column B onward is left
+alone too.
+
+Requires your Sheet connected (it's where decks live) and a catalog loaded (to look
+cards up).
+
+### Legality
+
+Deck detail shows a **Legality** section whenever something's off:
+
+- **Not exactly 60 cards** — constructed decks are 60 exactly, not "up to".
+- **More than 4 with the same name** — basic energy is exempt.
+- **Not legal in the format** — only when **Standard only** is on.
+- **Couldn't identify a line** — usually a promo; noted rather than judged.
+
+> The four-copy rule counts by **printed name**, which isn't the same as DeckCheck's
+> [functional equivalence](#a-few-concepts-first). Two cards can share a name and play
+> completely differently, and the rule still caps them at four *between them* — so
+> grouping by equivalence key here would let an illegal deck through. Name is the
+> stricter and correct lens.
+
+This is about legality only. Whether you *own* the cards is the gap-check right below
+it — a deck can be perfectly legal and completely unbuildable.
+
+### Copying a deck out
+
+**Copy as TCG Live list** puts the deck on your clipboard in TCG Live import format:
+Pokémon / Trainer / Energy sections with counts and a total, with comments, directives
+and stale headers left out. Handy for pasting into TCG Live, a deck site, or a message
+to someone.
+
 ## Gap Check — what am I missing?
 
 Paste a decklist and see exactly what you need to build it.

@@ -57,6 +57,25 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Save an edited decklist back to its Sheet tab, then re-read the decks so
+    /// reservations and reports pick the change up. Returns an error message, or nil.
+    ///
+    /// Unlike the built toggle, this deliberately has **no optimistic local apply**.
+    /// An edit is made in a draft the user is looking at and committed on purpose, so
+    /// showing it as saved before the Sheet agrees would be a lie you could act on —
+    /// and the Sheet is the source of truth for decks. A failed save leaves the draft
+    /// intact so it can be retried.
+    func saveDeck(_ deck: DeckList, text: String) async -> String? {
+        guard sheets.isConnected else { return "Connect your Sheet to save changes." }
+        do {
+            try await sheets.writeDeck(deck, text: text)
+            await decks.refresh(fetch: { try await self.sheets.fetchDecks() }, catalog: catalog.lookup)
+            return nil
+        } catch {
+            return "Couldn't save “\(deck.name)”: \((error as? LocalizedError)?.errorDescription ?? "\(error)")"
+        }
+    }
+
     /// App-driven sheet gap-check: read the decklist pasted into the Gap
     /// Check tab, run the engine, and write the report back into that tab. Best-effort
     /// — a failure here never blocks a sync.
