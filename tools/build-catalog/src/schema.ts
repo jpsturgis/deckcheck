@@ -53,8 +53,9 @@ CREATE INDEX idx_cards_name_nocase     ON cards(name COLLATE NOCASE);   -- searc
 -- The trigram tokenizer, not the default unicode61, because search is specified as a
 -- case-insensitive SUBSTRING match: "zard" must find "Charizard". A word/prefix
 -- tokenizer silently returns nothing for that, which is a wrong answer rather than a
--- slow one. Trigram costs more index (~4 MB on a ~6 MB snapshot) and can only match
--- patterns of 3+ characters — the app falls back to LIKE for shorter tokens.
+-- slow one. Trigram costs more index (+3.6 MB on an 18.1 MB snapshot, vs +0.8 MB for
+-- unicode61) and can only match patterns of 3+ characters — the app falls back to LIKE
+-- for shorter tokens.
 --
 -- Contentless: only the index is stored, and rowid joins back to cards, so the
 -- searchable text isn't duplicated into the file. Rows are inserted with an explicit

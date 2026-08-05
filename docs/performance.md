@@ -176,7 +176,7 @@ nothing to look up and it stays a scan. `charizard ex` shows why that's rarely a
 problem: the index resolves `charizard` first and the `ex` LIKE then runs over 125
 surviving rows instead of 23,444.
 
-Index cost on the real catalog: **17 MB → 20 MB**.
+Index cost on the real catalog: **18.1 MB → 21.7 MB**.
 
 ### Why the trigram tokenizer, and what it costs
 
@@ -188,13 +188,16 @@ and reproduces the old semantics exactly.
 
 It isn't free:
 
-| | index size | `zard` |
-|---|---|---|
-| `unicode61` | +0.9 MB | 0 rows — wrong |
-| `trigram` | +3 MB | 179 rows — correct |
+| | index size | `zard` | `charizard` |
+|---|---|---|---|
+| no index | — | 179 (scan) | 125 (scan) |
+| `unicode61` | +0.8 MB | **0 — wrong** | 125 |
+| `trigram` | +3.6 MB | 179 ✓ | 125 ✓ |
 
-That's a ~18% bigger catalog (17 MB → 20 MB). It buys behaviour parity, which is the
-right trade for something that ships inside the app.
+Both measured on the real catalog: 18.1 MB unindexed → 21.7 MB shipped, so trigram
+costs **+20% file size**. It buys behaviour parity, which is the right trade for
+something that ships inside the app — `unicode61` would be 2 MB smaller and silently
+answer `zard` with nothing.
 
 Two consequences worth knowing:
 
@@ -221,9 +224,12 @@ The deferred plan was to make `SQLiteCatalog` an actor so queries leave the main
 thread. Having done the search work first, that's the wrong fix for what's left.
 
 With search indexed, the dominant remaining main-thread catalog cost was Cards
-resolving every owned printing inside `body` — one lookup per printing at 11.6 µs, so
-~17 ms for a 1,500-printing collection, repeated on every keystroke, filter toggle and
-store update to recompute something that only changes when the inventory does.
+resolving every owned printing inside `body`. Measured against a real 554-printing
+collection and the real catalog: **5.1 ms a pass**, at 9.3 µs a lookup — repeated on
+every keystroke, filter toggle and store update, to recompute something that only
+changes when the inventory does. It scales linearly, so a 1,500-printing collection
+pays ~14 ms of it per render.
+
 `InventoryStore` now caches that resolution against its `revision` counter, which is
 what the counter was for. That removes the cost rather than relocating it, and it
 doesn't make every call site async.
