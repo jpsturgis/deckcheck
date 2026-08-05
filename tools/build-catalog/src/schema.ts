@@ -46,4 +46,24 @@ CREATE INDEX idx_cards_set_number      ON cards(set_id, number);        -- resol
 CREATE INDEX idx_cards_number          ON cards(number);                -- number-only fallback
 CREATE INDEX idx_cards_equivalence_key ON cards(equivalence_key);       -- functional grouping
 CREATE INDEX idx_cards_name_nocase     ON cards(name COLLATE NOCASE);   -- search
+
+-- Search index (docs/performance.md). Without it, search is a full-table LIKE scan
+-- across five expressions — ~22 ms per keystroke against a 23k-card snapshot.
+--
+-- The trigram tokenizer, not the default unicode61, because search is specified as a
+-- case-insensitive SUBSTRING match: "zard" must find "Charizard". A word/prefix
+-- tokenizer silently returns nothing for that, which is a wrong answer rather than a
+-- slow one. Trigram costs more index (+3.6 MB on an 18.1 MB snapshot, vs +0.8 MB for
+-- unicode61) and can only match patterns of 3+ characters — the app falls back to LIKE
+-- for shorter tokens.
+--
+-- Contentless: only the index is stored, and rowid joins back to cards, so the
+-- searchable text isn't duplicated into the file. Rows are inserted with an explicit
+-- rowid read from cards.rowid after the cards are in. Nothing in the build VACUUMs —
+-- that would renumber cards.rowid and silently break the join.
+CREATE VIRTUAL TABLE cards_fts USING fts5(
+  text,
+  content='',
+  tokenize='trigram case_sensitive 0'
+);
 `;

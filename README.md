@@ -105,6 +105,10 @@ npm run build -- --out ../../ios/DeckCheck/catalog.sqlite --cache-dir ./cache
 
 `--cache-dir` persists per-card JSON so rebuilds are cheap.
 
+If you already have a `catalog.sqlite` from an earlier version, rebuild it: snapshots
+built before the search index still work, but search falls back to a full-table scan
+(~22 ms a query instead of ~1 ms). Settings → Status says which one you have.
+
 **2. Open the project and set up signing.** Do this *before* step 3 — creating the
 OAuth client needs your bundle id.
 

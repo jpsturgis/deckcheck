@@ -199,20 +199,12 @@ struct CardsView: View {
             byKey[row.equivalence_key, default: []].append(row)
         }
 
-        // Resolve every owned printing against the catalog ONCE, up front. The sort
-        // below used to look both sides up inside the comparator — two SQLite queries
-        // per comparison, so ~n log n queries per pass (measured at 60 ms for a
-        // 500-printing collection, and this ran three times per body evaluation). One
-        // pass over the rows gives both the release date the sort needs and the image
-        // URL the row needs. See docs/performance.md.
-        var cards: [String: CatalogCard] = [:]
-        if let lookup = catalog.lookup {
-            for rows in byKey.values {
-                for row in rows where cards[row.card_id] == nil {
-                    cards[row.card_id] = lookup.card(byId: row.card_id)
-                }
-            }
-        }
+        // Every owned printing resolved against the catalog — the release date the sort
+        // needs and the image URL the row needs. This used to be looked up inside the
+        // sort comparator (two SQLite queries per comparison, ~n log n per pass), then
+        // once per pass, and is now once per *inventory change*: typing, toggling a
+        // filter and scrolling all reuse it. See docs/performance.md.
+        let cards = inventory.resolvedCards(using: catalog.lookup)
 
         return order.map { key -> CardListItem in
             // Newest printing first; the sheet cache has no release date, so it comes

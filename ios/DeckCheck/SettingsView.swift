@@ -7,7 +7,12 @@ struct SettingsView: View {
     @EnvironmentObject var outbox: Outbox
     @EnvironmentObject var sheets: GoogleSheetsService
 
+    @StateObject private var artWarmer = CollectionArtWarmer()
     @State private var syncing = false
+
+    /// Off by default: downloading a collection's art is the person's call, and it's
+    /// the kind of thing that should never surprise someone on a metered plan.
+    @AppStorage("warmArtOverCellular") private var warmArtOverCellular = false
 
     var body: some View {
         NavigationStack {
@@ -49,7 +54,37 @@ struct SettingsView: View {
                     Text("Flushes the outbox, then refreshes the read-cache from your Sheet.")
                 }
 
+                Section {
+                    artWarmingControls
+                    Toggle("Allow cellular", isOn: $warmArtOverCellular)
+                        .disabled(artWarmer.phase.isRunning)
+                } header: {
+                    Text("Card art")
+                } footer: {
+                    Text("Downloads your collection's thumbnails so the Cards tab is instant and works with no signal. Card art is about 11 KB each and never changes, so a 1,000-card collection is roughly 11 MB, fetched once. Wi-Fi only unless you allow cellular.")
+                }
+
                 if sheets.sheetRef != nil {
+                    Section {
+                        Button {
+                            Task {
+                                await sheets.migrateDerivedColumns(catalog: catalog.lookup,
+                                                                   normVersion: catalog.normVersion)
+                                await model.syncNow()
+                            }
+                        } label: {
+                            HStack {
+                                Label("Re-check card grouping", systemImage: "arrow.triangle.merge")
+                                if sheets.busy { Spacer(); ProgressView() }
+                            }
+                        }
+                        .disabled(sheets.busy || !catalog.isLoaded)
+                    } header: {
+                        Text("Card grouping")
+                    } footer: {
+                        Text("Your Sheet stores which cards count as copies of each other. Rows written by an older version — or by poke-check, which left the version blank — can be grouped by an out-of-date rule, so a card you own reads as missing in a gap-check. This re-derives that from the current catalog. It only touches the two machine columns, and it's safe to run any time.")
+                    }
+
                     Section {
                         if sheets.browserGapCheckEnabled {
                             Button {
@@ -101,6 +136,41 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .scrollDismissesKeyboard(.interactively)
             .keyboardDoneButton()
+        }
+    }
+
+    /// Download / progress / cancel, plus whatever the last run has to say.
+    @ViewBuilder private var artWarmingControls: some View {
+        switch artWarmer.phase {
+        case let .running(done, total):
+            VStack(alignment: .leading, spacing: 6) {
+                ProgressView(value: Double(done), total: Double(max(total, 1))) {
+                    Text("Downloading card art…")
+                } currentValueLabel: {
+                    Text("\(done) of \(total)")
+                }
+                Button(role: .cancel) { artWarmer.cancel() } label: { Text("Stop") }
+            }
+        default:
+            Button {
+                artWarmer.start(urlStrings: inventory.thumbnailURLs(using: catalog.lookup),
+                                wifiOnly: !warmArtOverCellular)
+            } label: {
+                Label("Download my collection's art", systemImage: "arrow.down.circle")
+            }
+            .disabled(!catalog.isLoaded || inventory.rows.isEmpty)
+
+            switch artWarmer.phase {
+            case let .finished(warmed, missed):
+                Text(missed > 0
+                     ? "\(warmed) downloaded · \(missed) had no art"
+                     : "\(warmed) downloaded — your collection is available offline.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            case let .blocked(reason):
+                Text(reason).font(.footnote).foregroundStyle(.orange)
+            default:
+                EmptyView()
+            }
         }
     }
 }

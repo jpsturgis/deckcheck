@@ -324,10 +324,26 @@ public enum GoogleSheets {
         //    a NUMBER (RAW + numeric value) so it stores as a numeric cell — otherwise a
         //    RAW string "4" is text, which Google's SUM silently skips.
         let qtyCol = layout.index(of: .qty).map(columnLetter)
-        let updates: [[String: Any]] = plan.ops.compactMap { op in
+        var updates: [[String: Any]] = plan.ops.compactMap { op in
             guard case let .setQty(rowNumber, _, qty) = op, let col = qtyCol else { return nil }
             return ["range": "\(ref.title)!\(col)\(rowNumber)", "values": [[qty]]]
         }
+
+        // 1b) setDerived → the same values:batchUpdate, one range per derived cell.
+        //     Written per cell rather than as a row span because the person may have
+        //     reordered the columns, so the two are not necessarily adjacent.
+        let keyCol = layout.index(of: .equivalenceKey).map(columnLetter)
+        let normCol = layout.index(of: .normVersion).map(columnLetter)
+        for op in plan.ops {
+            guard case let .setDerived(rowNumber, _, key, norm) = op else { continue }
+            if let col = keyCol {
+                updates.append(["range": "\(ref.title)!\(col)\(rowNumber)", "values": [[key]]])
+            }
+            if let col = normCol {
+                updates.append(["range": "\(ref.title)!\(col)\(rowNumber)", "values": [[norm]]])
+            }
+        }
+
         if !updates.isEmpty {
             out.append(jsonRequest(.post, url("\(base)/\(ref.spreadsheetId)/values:batchUpdate"),
                                    accessToken: accessToken,

@@ -6,8 +6,21 @@ import DeckCheckCore
 /// `tools/build-catalog`. Read-only; safe to share. The SwiftUI app can reuse
 /// this verbatim over the app-bundled snapshot; the `gapcheck` CLI uses it over a
 /// file path.
-public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
+///
+/// **Concurrency.** This is already reached from more than one thread — Scan resolves
+/// OCR results on a background task while views query the same connection on the main
+/// thread — so the sharing is stated here rather than left accidental. It's safe
+/// because the connection is opened read-only, both stored properties are immutable,
+/// and Apple's SQLite is built in serialized mode, which mutexes a connection
+/// internally. `@unchecked` because none of that is something the compiler can see.
+public final class SQLiteCatalog: CatalogLookup, CatalogSearching, @unchecked Sendable {
     private let db: OpaquePointer
+
+    /// Whether this snapshot carries the `cards_fts` search index. Detected rather
+    /// than assumed: the catalog is built separately from the app, so a snapshot
+    /// predating the index is a normal thing to be handed. Without it, search falls
+    /// back to the LIKE scan — same answers, just slower.
+    public let hasSearchIndex: Bool
 
     public init(path: String) throws {
         var handle: OpaquePointer?
@@ -18,6 +31,16 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
             throw SQLiteCatalogError.cannotOpen(path: path, message: message)
         }
         db = handle
+        hasSearchIndex = Self.tableExists("cards_fts", in: handle)
+    }
+
+    private static func tableExists(_ name: String, in db: OpaquePointer) -> Bool {
+        var stmt: OpaquePointer?
+        let sql = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1"
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT)
+        return sqlite3_step(stmt) == SQLITE_ROW
     }
 
     deinit { sqlite3_close(db) }
@@ -55,21 +78,72 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
 
     // MARK: CatalogSearching
 
+    /// The shortest pattern the `trigram` tokenizer can match. A shorter token isn't an
+    /// error — FTS5 just returns nothing for it, which would be a silently wrong
+    /// answer, so those tokens go through LIKE instead.
+    private static let minIndexedToken = 3
+
     public func searchByName(_ query: String, rowLimit: Int) -> [CatalogCard] {
         // Multi-term match (SearchMatch): each whitespace token must match at least one
         // field — name / set name / set code / number / number-slash-total — and all
-        // tokens must match, so terms are optional and narrow progressively. The name
-        // column is apostrophe-folded to line up with the folded tokens (curly U+2019 /
-        // straight U+0027, which is what iOS smart punctuation and hand typing produce).
+        // tokens must match, so terms are optional and narrow progressively.
         let tokens = SearchMatch.tokens(query)
         guard !tokens.isEmpty else { return [] }
-        let name = "REPLACE(REPLACE(c.name, char(8217), ''), char(39), '')"
-        let perToken = "(\(name) LIKE ? COLLATE NOCASE"
-            + " OR s.name LIKE ? COLLATE NOCASE"
-            + " OR s.ptcgo_code LIKE ? COLLATE NOCASE"
-            + " OR c.number LIKE ? COLLATE NOCASE"
-            + " OR (c.number || '/' || s.printed_total) LIKE ? COLLATE NOCASE)"
-        let whereClause = Array(repeating: perToken, count: tokens.count).joined(separator: " AND ")
+
+        // Tokens of 3+ characters go to the trigram index; anything shorter keeps the
+        // scan. A mixed query still wins: the index narrows the rows first, so the LIKE
+        // for the short token runs over what survived rather than the whole table.
+        let indexed = tokens.filter { $0.count >= Self.minIndexedToken }
+        guard hasSearchIndex, !indexed.isEmpty else {
+            return likeSearch(tokens, rowLimit: rowLimit)
+        }
+        return indexedSearch(indexed: indexed,
+                             scanned: tokens.filter { $0.count < Self.minIndexedToken },
+                             rowLimit: rowLimit)
+    }
+
+    /// Search via the `cards_fts` trigram index. `indexed` tokens are matched by the
+    /// index; `scanned` tokens (too short to index) are ANDed on as LIKE predicates.
+    private func indexedSearch(indexed: [String], scanned: [String], rowLimit: Int) -> [CatalogCard] {
+        // Each token is one FTS5 string literal — with trigram, a quoted string matches
+        // as a substring, which is exactly the LIKE '%token%' semantics being replaced.
+        // `"` is the only character needing escaping inside one, by doubling it.
+        let match = indexed
+            .map { "\"" + $0.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
+            .joined(separator: " AND ")
+
+        // Unaliased on purpose: some SQLite builds reject `alias MATCH ?`.
+        var clauses = ["cards_fts MATCH ?1"]
+        clauses.append(contentsOf: Array(repeating: Self.likePerToken, count: scanned.count))
+        let sql = Self.selectColumns + Self.searchFrom + clauses.joined(separator: " AND ")
+            + " ORDER BY c.name LIMIT ?"
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            // A malformed MATCH or a snapshot whose index is unreadable must not mean
+            // "no results" — fall back rather than silently answer wrong.
+            return likeSearch(indexed + scanned, rowLimit: rowLimit)
+        }
+        defer { sqlite3_finalize(stmt) }
+        var idx: Int32 = 1
+        sqlite3_bind_text(stmt, idx, match, -1, SQLITE_TRANSIENT); idx += 1
+        for t in scanned {
+            let like = "%\(t)%"
+            for _ in 0..<5 { sqlite3_bind_text(stmt, idx, like, -1, SQLITE_TRANSIENT); idx += 1 }
+        }
+        sqlite3_bind_int(stmt, idx, Int32(rowLimit))
+        var rows: [CatalogCard] = []
+        while sqlite3_step(stmt) == SQLITE_ROW { rows.append(Self.row(stmt)) }
+        return rows
+    }
+
+    /// The unindexed path: a full-table LIKE scan across the five searchable
+    /// expressions. Correct but slow (~22 ms against a 23k-card snapshot) — kept as the
+    /// fallback for snapshots without `cards_fts` and for sub-trigram-length tokens.
+    private func likeSearch(_ tokens: [String], rowLimit: Int) -> [CatalogCard] {
+        guard !tokens.isEmpty else { return [] }
+        let whereClause = Array(repeating: Self.likePerToken, count: tokens.count)
+            .joined(separator: " AND ")
         let sql = Self.selectPrefix + " " + whereClause + " ORDER BY c.name LIMIT ?"
 
         var stmt: OpaquePointer?
@@ -85,6 +159,35 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
         while sqlite3_step(stmt) == SQLITE_ROW { rows.append(Self.row(stmt)) }
         return rows
     }
+
+    /// One token against the five searchable expressions. The name column is
+    /// apostrophe-folded to line up with the folded tokens (curly U+2019 / straight
+    /// U+0027, which is what iOS smart punctuation and hand typing produce).
+    private static let likePerToken =
+        "(REPLACE(REPLACE(c.name, char(8217), ''), char(39), '') LIKE ? COLLATE NOCASE"
+        + " OR s.name LIKE ? COLLATE NOCASE"
+        + " OR s.ptcgo_code LIKE ? COLLATE NOCASE"
+        + " OR c.number LIKE ? COLLATE NOCASE"
+        + " OR (c.number || '/' || s.printed_total) LIKE ? COLLATE NOCASE)"
+
+    // MARK: Provenance
+
+    /// A value from the snapshot's `meta` table, or nil if absent. Tolerates a
+    /// snapshot with no `meta` table at all (the test fixtures, older builds).
+    public func metaValue(_ key: String) -> String? {
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "SELECT value FROM meta WHERE key = ?1", -1, &stmt, nil) == SQLITE_OK
+        else { return nil }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, key, -1, SQLITE_TRANSIENT)
+        guard sqlite3_step(stmt) == SQLITE_ROW, let c = sqlite3_column_text(stmt, 0) else { return nil }
+        return String(cString: c)
+    }
+
+    /// The normalization version every `equivalence_key` in this snapshot was computed
+    /// under. An inventory row stamped with anything else — including nothing at all —
+    /// has a key that predates this catalog. See `InventoryMigration`.
+    public var normVersion: String? { metaValue("norm_version") }
 
     // MARK: Full enumeration
 
@@ -105,14 +208,21 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching {
     // `hp` lives inside the per-card `attributes` JSON (no dedicated column) — pull just
     // that scalar out with json_extract so the recognizer can use it without
     // transferring the whole blob or a catalog rebuild.
-    private static let selectPrefix = """
+    private static let selectColumns = """
     SELECT c.card_id, c.set_id, s.name, s.ptcgo_code, c.number, c.name, c.supertype,
            c.equivalence_key, c.standard_legal, c.expanded_legal, c.regulation_mark,
            c.image_small, s.printed_total, c.image_large, s.release_date,
            json_extract(c.attributes, '$.hp'), c.subtypes
-    FROM cards c JOIN sets s ON c.set_id = s.id
-    WHERE
     """
+
+    private static let selectPrefix = selectColumns + "\n"
+        + "FROM cards c JOIN sets s ON c.set_id = s.id\nWHERE"
+
+    /// The search index is contentless — it stores no card data, only the trigrams and
+    /// a `rowid` pointing back at `cards`.
+    private static let searchFrom = "\n"
+        + "FROM cards c JOIN sets s ON c.set_id = s.id"
+        + " JOIN cards_fts ON cards_fts.rowid = c.rowid\nWHERE "
 
     private func query(_ whereClause: String, _ binds: [String]) -> [CatalogCard] {
         var stmt: OpaquePointer?
