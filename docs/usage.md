@@ -124,7 +124,10 @@ deck** button (below) that writes one for you.
 
 Paste a decklist and see exactly what you need to build it.
 
-1. Paste a **TCG Live / Limitless** decklist into the box and tap **Check**.
+1. Paste a **TCG Live / Limitless** decklist into the box and tap **Check** — or just
+   tap **Paste**, which pastes *and* checks in one go, with no "Allow Paste?" prompt.
+   (iOS greys the Paste button out on its own when there's nothing on the clipboard to
+   paste.) If the box already has a list in it, pasting asks before replacing it.
 2. You get a **gap-first report**: a **Buildable N/total** headline, then **❌ Missing /
    ⚠️ Short / 📝 Different wording / ✅ Have** (🔁 marks a card you own via a *different*
    printing), plus a copy-ready **TCGplayer buy list** for just the shortfall.
@@ -140,14 +143,66 @@ Paste a decklist and see exactly what you need to build it.
 5. **Add as deck** saves the list as a `Deck: <name>` tab in your Sheet (so it reserves
    cards and appears under Decks). Requires your Sheet connected.
 
-**Two other ways to run a gap-check:**
+**Three other ways to run a gap-check:**
 
+- **From anywhere on your phone (Shortcuts):** DeckCheck ships a **Gap Check Decklist**
+  action, so you can check a list straight from Safari, Discord, or Notes without
+  copying it first. See [From the share sheet](#from-the-share-sheet) below.
 - **In your Sheet, any time:** your Sheet has a **`Gap Check`** tab — paste a decklist
   into **column A** and the report fills in from **column C** on your next sync in the
   app.
 - **In your browser, app closed (optional add-on):** enable it in Settings and the
   report updates itself as you edit the Sheet, without the app running — see
   [`browser-gap-check.md`](setup/browser-gap-check.md).
+
+### From the share sheet
+
+DeckCheck registers a Shortcuts action called **Gap Check Decklist**. It's there as soon
+as you install the app — you'll find it in the Shortcuts app under DeckCheck, and by
+typing "gap check" into Spotlight.
+
+To get it into the **share sheet**, wrap it in a shortcut. This is a one-time setup and
+takes about a minute.
+
+1. Open the **Shortcuts** app → the **Shortcuts** tab → **+** (top right).
+2. Tap **Info** (the ⓘ at the bottom of the editor, or *Shortcut Details* in the
+   right-hand pane on iPad).
+   - Turn on **Show in Share Sheet**.
+   - Tap **Share Sheet Types**, **Deselect All**, then select **Text** only. (Without
+     this the shortcut also offers itself for photos and files, where it can't work.)
+   - Tap **Done**.
+3. Tap **Add Action** and search for `Gap Check`. Under **DeckCheck**, tap
+   **Gap Check Decklist**.
+4. The action reads *Gap check **Decklist***. Tap the **Decklist** placeholder, then
+   choose **Shortcut Input** from the variable bar just above the keyboard.
+   - It should now read *Gap check **Shortcut Input***. This is the step that's easy to
+     miss — without it the shortcut runs with an empty decklist.
+5. Rename it: tap the shortcut's name at the top → **Rename** → e.g. `Gap Check`. This
+   is the name you'll be looking for in the share sheet.
+6. **Done**.
+
+To use it: select a decklist in Safari (or Discord, Notes, Messages — anywhere), tap
+**Share**, then **scroll down past the app icons** to the list of actions and tap your
+shortcut. DeckCheck opens straight to the report.
+
+> The shortcut appears in the share sheet's **action list** — the rows below the app
+> icons — not in the top row of apps. On first run iOS asks once whether to allow it to
+> share data with DeckCheck; tap **Allow**. You can drag it higher up the action list by
+> scrolling to the bottom and choosing **Edit Actions…**.
+
+If the shortcut runs but the report is empty, step 4 is almost certainly the reason —
+reopen the shortcut and check the action says *Shortcut Input* and not *Decklist*.
+
+> **Why a shortcut rather than DeckCheck appearing in the share sheet directly?** That
+> would need a Share Extension, and a share extension can only hand data to its app
+> through an **App Group**, which Apple gates behind the paid Developer Program. Since
+> DeckCheck is built to work on a **free Apple ID**, it uses an App Intent instead —
+> the setup above is one-time, and it also gets you Siri and Home Screen / Control
+> Center / Action Button triggers that a share extension wouldn't.
+
+The same action works for anything else Shortcuts can feed it. A useful one: a
+Home Screen shortcut that passes **Clipboard** to *Gap Check Decklist* — copy a list,
+tap the icon, read the report.
 
 ## Settings — connection, sync, and options
 
