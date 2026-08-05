@@ -17,9 +17,21 @@ public enum TCGplayerExport {
     /// missing → short → have, so the list stays gap-first. (A missing entry owns
     /// nothing, so its shortfall *is* the required quantity.)
     public static func massEntry(_ report: GapReport) -> String {
-        report.entries
+        massEntry(report.entries
             .filter { $0.shortQty > 0 }
-            .map { entryLine($0.shortQty, $0.representative) }
+            .map { (quantity: $0.shortQty, card: $0.representative) })
+    }
+
+    /// Mass Entry lines for an arbitrary want list, in the order given.
+    ///
+    /// The gap report isn't the only thing that produces one — set completion has a
+    /// shortfall too ("the 49 cards I still need from Surging Sparks"), and it's the
+    /// same buy list in the same format. Keeping the line formatting in one place is
+    /// the point: the zero-padding rules below are fiddly and easy to re-derive wrong.
+    public static func massEntry(_ lines: [(quantity: Int, card: CatalogCard)]) -> String {
+        lines
+            .filter { $0.quantity > 0 }
+            .map { entryLine($0.quantity, $0.card) }
             .joined(separator: "\n")
     }
 
@@ -53,8 +65,13 @@ public enum TCGplayerExport {
     /// `058/132` — zero-pad a purely-numeric collector number to the printed total's
     /// width and append the total. Non-numeric numbers (TG/GG galleries) or a missing
     /// total pass through unchanged.
+    ///
+    /// A total of **zero** counts as missing, not as a total. Promo sets carry
+    /// `printed_total = 0` in the snapshot — a black star promo prints its number with
+    /// no "/total" at all — and treating that as real emitted `5/0`, which Mass Entry
+    /// can't match against anything.
     private static func numberField(_ card: CatalogCard) -> String {
-        guard let total = card.printedTotal, card.number.allSatisfy(\.isNumber) else {
+        guard let total = card.printedTotal, total > 0, card.number.allSatisfy(\.isNumber) else {
             return card.number
         }
         let width = max(String(total).count, card.number.count)

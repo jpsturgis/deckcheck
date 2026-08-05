@@ -62,6 +62,7 @@ One search surface with a scope switch:
 - **Owned** (default) — your collection, from the on-device cache (works offline).
 - **All** — search the **whole catalog** by name, set, or number; each result shows how
   many you own (including 0).
+- **Sets** — how far through each set you are (below).
 
 **Search** with the bar (name / set / number). Two filters sit above the list:
 
@@ -88,6 +89,27 @@ sync.
   check / buy).
 - **Printings (N)** — every printing in the equivalence group, with the ones you own
   check-marked; tap any to open its own detail.
+
+### Sets — how close am I to completing one?
+
+Switch the scope to **Sets** for one row per set, newest first, each with a progress bar
+and an *N/total* count. The search bar filters by set name or TCG Live code, and
+**Standard only** narrows the list to sets still in the format.
+
+**Tap a set** for a **Missing / Have** switch listing either side, plus a **Copy buy
+list** button that puts every card you're missing from that set on the clipboard as a
+TCGplayer Mass Entry list — the same format the Gap Check buy list uses.
+
+> **Sets count printings, not cards.** This is the one place in DeckCheck where
+> [functional equivalence](#a-few-concepts-first) is deliberately *not* used. A deck
+> doesn't care which printing of Iono you own, but a binder page does — so owning the
+> Paldean Fates reprint does nothing for your Paldea Evolved slot. Everywhere else in
+> the app, reprints count as the same card; here they don't.
+
+The denominator is **how many cards of that set are in your catalog snapshot**, not the
+printed "/191" on the card. Those differ (secret rares push the real count higher, and
+your snapshot may not carry every printing), and a total you can't actually reach would
+make a bar that never fills. Where they differ, the set's detail screen says so.
 
 ## Decks — track the decks you're building
 

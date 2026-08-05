@@ -10,7 +10,7 @@ import DeckCheckSQLite
 @MainActor
 final class Catalog: ObservableObject {
     /// Non-nil once a snapshot is loaded.
-    @Published private(set) var lookup: (any CatalogLookup & CatalogSearching)?
+    @Published private(set) var lookup: (any CatalogLookup & CatalogSearching & CatalogSetBrowsing)?
     @Published private(set) var status: String = "Loading catalog…"
 
     /// The normalization version this snapshot's `equivalence_key`s were computed

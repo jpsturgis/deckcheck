@@ -29,6 +29,36 @@ struct FakeCatalog: CatalogLookup {
 
 extension FakeCatalog: CatalogSearching {}
 
+/// Sets are derived from whatever cards the fake was given, so a test can define a set
+/// just by adding printings to `all` — there's no second fixture to keep in step. A set
+/// is legal in a format when any of its printings is, which is how the real snapshot's
+/// per-set flags are built.
+extension FakeCatalog: CatalogSetBrowsing {
+    func sets() -> [CatalogSet] {
+        var out: [CatalogSet] = []
+        for setId in NSOrderedSet(array: all.map(\.setId)).array as! [String] {
+            let inSet = all.filter { $0.setId == setId }
+            guard let first = inSet.first else { continue }
+            out.append(CatalogSet(
+                setId: setId,
+                name: first.setName,
+                ptcgoCode: first.ptcgoCode,
+                releaseDate: first.releaseDate,
+                printedTotal: first.printedTotal,
+                catalogCount: inSet.count,
+                standardLegal: inSet.contains(where: \.standardLegal),
+                expandedLegal: inSet.contains(where: \.expandedLegal)
+            ))
+        }
+        return out
+    }
+
+    func cards(setId: String) -> [CatalogCard] {
+        all.filter { $0.setId == setId }
+            .sorted { $0.number.localizedStandardCompare($1.number) == .orderedAscending }
+    }
+}
+
 /// A small fixture catalog with deliberate reprints (same equivalence key across
 /// printings) and a rotated card, so the tests can exercise functional ownership
 /// and the legality lens.
