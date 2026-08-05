@@ -106,9 +106,10 @@ struct SetDetailView: View {
 
     private func footerText(_ p: SetProgress) -> String {
         var parts = ["Counted by printing — a reprint in another set doesn't fill a slot here."]
-        if let printed = p.catalogSet.printedTotal, printed != p.totalCount {
+        if let printed = p.catalogSet.printedTotal, printed > 0, printed != p.totalCount {
             parts.append("The set is printed as \(printed) cards; your catalog has \(p.totalCount).")
         }
+        parts.append("Hand-entered promos can't count toward a set — they aren't tied to a catalog printing.")
         return parts.joined(separator: " ")
     }
 }
@@ -166,8 +167,10 @@ private struct SetCardRow: View {
     }
 
     /// "125/197" where the set has a printed total, else the bare collector number.
+    /// Zero is "no total", not a total — promo sets carry 0, and a black star promo
+    /// prints its number without one. See `TCGplayerExport.numberField`.
     private var designation: String {
-        guard let total = card.printedTotal, card.number.allSatisfy(\.isNumber) else {
+        guard let total = card.printedTotal, total > 0, card.number.allSatisfy(\.isNumber) else {
             return card.number
         }
         let width = max(3, String(total).count, card.number.count)

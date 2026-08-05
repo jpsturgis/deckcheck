@@ -91,4 +91,25 @@ final class TCGplayerExportTests: XCTestCase {
     func testMassEntryFromAnEmptyListIsEmpty() {
         XCTAssertEqual(TCGplayerExport.massEntry([]), "")
     }
+
+    /// Promo sets carry `printed_total = 0` — a black star promo prints its number with
+    /// no "/total" at all. Treating that as a real total emitted "5/0", which Mass Entry
+    /// can't match against anything.
+    func testAZeroPrintedTotalIsTreatedAsNoTotal() {
+        let promo = CatalogCard(cardId: "mep-5", setId: "mep", setName: "MEP Black Star Promos",
+                                ptcgoCode: "MEP", number: "5", name: "Pikachu", supertype: .pokemon,
+                                equivalenceKey: "pika", standardLegal: true, expandedLegal: true,
+                                printedTotal: 0)
+        XCTAssertEqual(TCGplayerExport.massEntry([(quantity: 1, card: promo)]),
+                       "1 Pikachu [MEP] 5")
+    }
+
+    func testANilPrintedTotalIsAlsoTreatedAsNoTotal() {
+        let noTotal = CatalogCard(cardId: "x-5", setId: "x", setName: "X", ptcgoCode: "XXX",
+                                  number: "5", name: "Mystery", supertype: .pokemon,
+                                  equivalenceKey: "m", standardLegal: true, expandedLegal: true,
+                                  printedTotal: nil)
+        XCTAssertEqual(TCGplayerExport.massEntry([(quantity: 1, card: noTotal)]),
+                       "1 Mystery [XXX] 5")
+    }
 }

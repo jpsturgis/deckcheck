@@ -65,8 +65,13 @@ public enum TCGplayerExport {
     /// `058/132` — zero-pad a purely-numeric collector number to the printed total's
     /// width and append the total. Non-numeric numbers (TG/GG galleries) or a missing
     /// total pass through unchanged.
+    ///
+    /// A total of **zero** counts as missing, not as a total. Promo sets carry
+    /// `printed_total = 0` in the snapshot — a black star promo prints its number with
+    /// no "/total" at all — and treating that as real emitted `5/0`, which Mass Entry
+    /// can't match against anything.
     private static func numberField(_ card: CatalogCard) -> String {
-        guard let total = card.printedTotal, card.number.allSatisfy(\.isNumber) else {
+        guard let total = card.printedTotal, total > 0, card.number.allSatisfy(\.isNumber) else {
             return card.number
         }
         let width = max(String(total).count, card.number.count)
