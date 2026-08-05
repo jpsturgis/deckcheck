@@ -49,10 +49,11 @@ public enum DeckValidator {
                                 catalog: any CatalogLookup,
                                 lens: LegalityFormat? = nil) -> [DeckViolation] {
         let resolved = DecklistParser.parse(decklist).map { LineResolver.resolve($0, catalog: catalog) }
-        return validate(resolved: resolved, lens: lens)
+        return validate(resolved: resolved, catalog: catalog, lens: lens)
     }
 
     public static func validate(resolved: [ResolvedLine],
+                                catalog: any CatalogLookup,
                                 lens: LegalityFormat? = nil) -> [DeckViolation] {
         var out: [DeckViolation] = []
 
@@ -88,8 +89,8 @@ public enum DeckValidator {
             var reported = Set<String>()
             for line in resolved {
                 guard case let .resolved(card) = line.resolution else { continue }
-                let legal = lens == .standard ? card.standardLegal : card.expandedLegal
-                guard !legal, reported.insert(card.name).inserted else { continue }
+                guard !isLegal(card, in: lens, catalog: catalog),
+                      reported.insert(card.name).inserted else { continue }
                 out.append(DeckViolation(
                     kind: .notLegal(name: card.name, format: lens),
                     message: "\(card.name) isn't legal in \(lens == .standard ? "Standard" : "Expanded")."))
@@ -107,6 +108,30 @@ public enum DeckValidator {
         }
 
         return out
+    }
+
+    /// Whether the *card* is legal in the format — judged across its whole functional
+    /// group, not on the one printing the decklist happens to name.
+    ///
+    /// The format rule is about the card, not the piece of cardboard: an older printing
+    /// is playable as long as the card appears in a legal set. So a list saying
+    /// "4 Boss's Orders RCL 154" is fine while Boss's Orders has a Standard-legal
+    /// reprint, and a list is only illegal when *no* printing in the group is legal.
+    ///
+    /// Judging the named printing alone flags most of a perfectly legal deck the moment
+    /// a set rotates or a list carries the printing its owner actually has — Rare Candy,
+    /// Ultra Ball, Boss's Orders and Judge all have printings on both sides of the line.
+    /// `CardsView.ownedGroupIsLegal` already reads legality this way; this brings the
+    /// validator in step with it.
+    private static func isLegal(_ card: CatalogCard,
+                                in lens: LegalityFormat,
+                                catalog: any CatalogLookup) -> Bool {
+        func legal(_ c: CatalogCard) -> Bool {
+            lens == .standard ? c.standardLegal : c.expandedLegal
+        }
+        if legal(card) { return true }
+        let group = catalog.cards(equivalenceKey: card.equivalenceKey)
+        return group.contains(where: legal)
     }
 
     /// The name a line contributes to the four-copy tally, or nil when it's exempt.

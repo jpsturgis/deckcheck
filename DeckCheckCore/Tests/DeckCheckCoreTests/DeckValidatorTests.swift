@@ -100,23 +100,58 @@ final class DeckValidatorTests: XCTestCase {
     }
 
     func testFormatLegalityOnlyWhenALensIsApplied() {
-        // Boss's Orders RCL 154 is not Standard-legal in the fixture.
+        // Air Balloon SSH 213 has no Standard-legal printing in its group.
         let text = """
-        4 Boss's Orders RCL 154
+        4 Air Balloon SSH 213
         4 Charizard ex OBF 125
         52 Basic Fire Energy MEE 2
         """
         XCTAssertTrue(validate(text).isEmpty, "no lens → legality isn't judged")
 
         let v = validate(text, lens: .standard)
-        XCTAssertEqual(v.map(\.kind), [.notLegal(name: "Boss's Orders", format: .standard)])
-        XCTAssertTrue(validate(text, lens: .expanded).isEmpty, "the RCL printing is Expanded-legal")
+        XCTAssertEqual(v.map(\.kind), [.notLegal(name: "Air Balloon", format: .standard)])
+        XCTAssertTrue(validate(text, lens: .expanded).isEmpty, "the SSH printing is Expanded-legal")
+    }
+
+    /// Legality is a property of the *card*, not the printing the list names. An older
+    /// printing is playable while the card has a legal reprint — so a deck listing the
+    /// copy its owner actually has must not be flagged.
+    ///
+    /// Judging the named printing alone flagged most of a legal deck the moment a set
+    /// rotated: Rare Candy, Ultra Ball, Boss's Orders and Judge all have printings on
+    /// both sides of the line.
+    func testAnOlderPrintingIsLegalWhenTheCardHasALegalReprint() {
+        // Boss's Orders RCL 154 is not itself Standard-legal, but PAL 172 — same
+        // equivalence group — is.
+        XCTAssertFalse(Fixture.bossRCL.standardLegal)
+        XCTAssertTrue(Fixture.bossPAL.standardLegal)
+        XCTAssertEqual(Fixture.bossRCL.equivalenceKey, Fixture.bossPAL.equivalenceKey)
+
+        let text = """
+        4 Boss's Orders RCL 154
+        4 Charizard ex OBF 125
+        52 Basic Fire Energy MEE 2
+        """
+        XCTAssertTrue(validate(text, lens: .standard).isEmpty,
+                      "the card is Standard-legal via its reprint, so the old print is playable")
+    }
+
+    /// The converse: a card with no legal printing anywhere in its group is a real
+    /// violation, and must still be caught.
+    func testACardWithNoLegalPrintingAnywhereIsStillFlagged() {
+        let text = """
+        4 Energy Retrieval AOR 99
+        4 Charizard ex OBF 125
+        52 Basic Fire Energy MEE 2
+        """
+        XCTAssertEqual(validate(text, lens: .standard).map(\.kind),
+                       [.notLegal(name: "Energy Retrieval", format: .standard)])
     }
 
     func testAnIllegalCardIsReportedOncePerName() {
         let text = """
-        2 Boss's Orders RCL 154
-        2 Boss's Orders RCL 154
+        2 Air Balloon SSH 213
+        2 Air Balloon SSH 213
         4 Charizard ex OBF 125
         52 Basic Fire Energy MEE 2
         """
@@ -147,7 +182,7 @@ final class DeckValidatorTests: XCTestCase {
     func testViolationsAreOrderedSizeThenCopiesThenLegalityThenUnknown() {
         let text = """
         5 Iono PAL 185
-        4 Boss's Orders RCL 154
+        4 Air Balloon SSH 213
         4 Some Promo XYZ 999
         """
         let kinds = validate(text, lens: .standard).map(\.kind)
