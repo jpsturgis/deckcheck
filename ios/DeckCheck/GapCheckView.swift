@@ -9,7 +9,6 @@ struct GapCheckView: View {
     @EnvironmentObject var catalog: Catalog
     @EnvironmentObject var model: AppModel
     @StateObject private var inbox = DecklistInbox.shared
-    @Environment(\.scenePhase) private var scenePhase
 
     @State private var deckText = ""
     @State private var checkedText: String?
@@ -17,13 +16,12 @@ struct GapCheckView: View {
     @State private var deckName = ""
     @State private var addDeckStatus: String?
 
-    /// Whether the clipboard holds *any* text. Checked via `hasStrings`, which reports
-    /// presence without reading the contents — so it raises neither the "Allow Paste?"
-    /// alert nor the paste banner. Only the user tapping `PasteButton` reads anything.
-    @State private var clipboardHasText = false
-
     /// Why an incoming decklist was refused, if it was.
     @State private var ingestNotice: String?
+
+    /// A pasted decklist held back for confirmation because the editor already has
+    /// something in it. Pasting over your own text should be possible, but not silent.
+    @State private var pendingReplacement: String?
 
     var body: some View {
         NavigationStack {
@@ -53,15 +51,23 @@ struct GapCheckView: View {
                     // field, and this Form already had a two-buttons-in-one-row tap
                     // collision (see .borderless above) — so it gets its own cell.
                     //
-                    // Shown only when there's something to paste *and* the editor is
-                    // empty, so it can never silently replace something you typed.
-                    if clipboardHasText && deckText.isEmpty {
-                        PasteButton(payloadType: String.self) { strings in
-                            guard let text = strings.first else { return }
-                            accept(text)
-                        }
-                        .buttonBorderShape(.capsule)
+                    // **Rendered unconditionally.** Wrapping it in an `if` looked
+                    // tidier — hide it when there's nothing to paste — but putting a
+                    // `PasteButton` behind a condition means SwiftUI removes and
+                    // re-inserts it, and the recycled `UIPasteControl` comes back
+                    // without its privileged status: greyed out, and prompting for
+                    // permission on tap, until the app is relaunched. One instance that
+                    // is never re-inserted is the fix.
+                    //
+                    // Letting the system own the enabled state is also simply more
+                    // correct than tracking it here: it fades the control from its own
+                    // live view of the pasteboard, where `hasStrings` was a copy that
+                    // went stale the moment anything changed.
+                    PasteButton(payloadType: String.self) { strings in
+                        guard let text = strings.first else { return }
+                        accept(text)
                     }
+                    .buttonBorderShape(.capsule)
 
                     if let ingestNotice {
                         Text(ingestNotice)
@@ -105,23 +111,25 @@ struct GapCheckView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .onAppear {
-                refreshClipboardState()
                 claimSharedDecklist()   // cold launch, or first visit after the intent ran
             }
-            // The clipboard can change while the app is in the background — that's the
-            // normal case here, since copying the list happens in Safari or Discord.
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active { refreshClipboardState() }
-            }
             .onChange(of: inbox.pending) { _, _ in claimSharedDecklist() }
+            .alert("Replace the decklist?", isPresented: Binding(
+                get: { pendingReplacement != nil }, set: { if !$0 { pendingReplacement = nil } })
+            ) {
+                Button("Replace") {
+                    let text = pendingReplacement
+                    pendingReplacement = nil
+                    if let text { apply(text) }
+                }
+                Button("Cancel", role: .cancel) { pendingReplacement = nil }
+            } message: {
+                Text("The box already has a list in it. Pasting will replace it.")
+            }
         }
     }
 
     // MARK: -
-
-    private func refreshClipboardState() {
-        clipboardHasText = UIPasteboard.general.hasStrings
-    }
 
     private func claimSharedDecklist() {
         guard let text = inbox.claim() else { return }
@@ -129,13 +137,26 @@ struct GapCheckView: View {
     }
 
     /// Take a decklist that arrived from outside the editor — the paste button or the
-    /// App Intent — and run it. Pasting and checking are one step: separating them
-    /// would put a tap back in the flow this whole feature exists to remove.
+    /// App Intent.
+    ///
+    /// Rejection comes before the replace prompt: asking "replace what you typed?" only
+    /// to answer "…with something that isn't a decklist" wastes the user's decision.
     private func accept(_ text: String) {
         guard DecklistDetection.looksLikeDecklist(text) else {
             ingestNotice = "That doesn't look like a decklist — expected lines like “4 Iono PAL 185”."
             return
         }
+        let existing = deckText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard existing.isEmpty || existing == text.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            pendingReplacement = text
+            return
+        }
+        apply(text)
+    }
+
+    /// Run an accepted decklist. Pasting and checking are one step: separating them
+    /// would put a tap back in the flow this whole feature exists to remove.
+    private func apply(_ text: String) {
         ingestNotice = nil
         deckText = text
         hideKeyboard()
