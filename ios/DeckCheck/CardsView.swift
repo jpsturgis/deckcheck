@@ -11,8 +11,14 @@ struct CardsView: View {
     @EnvironmentObject var outbox: Outbox
     @EnvironmentObject var decks: DecksStore
 
-    enum Scope: String, CaseIterable { case owned = "Owned", all = "All" }
+    enum Scope: String, CaseIterable { case owned = "Owned", all = "All", sets = "Sets" }
     @State private var scope: Scope = .owned
+
+    /// Per-set completion, recomputed on a `.task(id:)` rather than per `body`.
+    /// Counting touches every printing in the snapshot, so doing it inside a computed
+    /// property would redo ~23k id reads on every keystroke and every scroll frame —
+    /// the same trap docs/performance.md records for the deck reports.
+    @State private var setProgress: [SetProgress] = []
     @State private var query = ""
     /// `query` settled. Catalog search is a full-table LIKE scan (~22 ms against a
     /// 23k-card snapshot on a Mac, more on a phone), so running it per keystroke made
@@ -28,7 +34,21 @@ struct CardsView: View {
     private var legalityFormat: LegalityFormat? { standardOnly ? .standard : nil }
 
     private var items: [CardListItem] {
-        scope == .owned ? ownedItems() : allItems()
+        switch scope {
+        case .owned: return ownedItems()
+        case .all:   return allItems()
+        case .sets:  return []   // Sets renders its own rows; see setsList()
+        }
+    }
+
+    /// Sets matching the search box, by name or TCG Live code.
+    private var filteredSets: [SetProgress] {
+        let q = debouncedQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return setProgress }
+        return setProgress.filter {
+            $0.name.localizedCaseInsensitiveContains(q)
+                || ($0.ptcgoCode?.localizedCaseInsensitiveContains(q) ?? false)
+        }
     }
 
     var body: some View {
@@ -53,7 +73,7 @@ struct CardsView: View {
                         .toggleStyle(.button)
                         .buttonStyle(.bordered)
                         if scope == .owned {
-                            Toggle(isOn: $freeOnly) {
+                            Toggle(isOn: $freeOnly) {   // free-only is meaningless for a set
                                 Label("Free only", systemImage: freeOnly ? "checkmark.circle.fill" : "circle")
                             }
                             .toggleStyle(.button)
@@ -69,7 +89,19 @@ struct CardsView: View {
                 content(items)
             }
             .navigationTitle("Cards")
-            .searchable(text: $query, prompt: scope == .owned ? "Your cards — name, set, or number" : "Search — name, set, or number")
+            .searchable(text: $query, prompt: searchPrompt)
+            // Recompute set completion when the collection changes, when the legality
+            // lens changes, when the catalog finishes loading, or when the user first
+            // switches to this scope — and at no other time.
+            .task(id: SetsInputs(revision: inventory.revision,
+                                 standardOnly: standardOnly,
+                                 catalogLoaded: catalog.isLoaded,
+                                 active: scope == .sets)) {
+                guard scope == .sets, let lookup = catalog.lookup else { return }
+                setProgress = SetCompletion.progress(owned: inventory.owned,
+                                                     catalog: lookup,
+                                                     lens: legalityFormat)
+            }
             .task(id: query) {
                 // Let typing settle before re-querying. Clearing is instant — that
                 // should feel immediate.
@@ -116,9 +148,19 @@ struct CardsView: View {
         Task { await model.syncNow() }
     }
 
+    private var searchPrompt: String {
+        switch scope {
+        case .owned: return "Your cards — name, set, or number"
+        case .all:   return "Search — name, set, or number"
+        case .sets:  return "Find a set — name or code"
+        }
+    }
+
     @ViewBuilder private func content(_ items: [CardListItem]) -> some View {
-        if scope == .all && catalog.lookup == nil {
+        if (scope == .all || scope == .sets) && catalog.lookup == nil {
             ContentUnavailableView("No catalog", systemImage: "tray", description: Text(catalog.status))
+        } else if scope == .sets {
+            setsList()
         } else if let empty = emptyMessage(items) {
             ContentUnavailableView(empty.title, systemImage: empty.icon, description: Text(empty.detail))
         } else {
@@ -137,6 +179,41 @@ struct CardsView: View {
             }
             .listStyle(.plain)
         }
+    }
+
+    @ViewBuilder private func setsList() -> some View {
+        let sets = filteredSets
+        if sets.isEmpty {
+            ContentUnavailableView(
+                debouncedQuery.isEmpty ? "No sets" : "No sets match",
+                systemImage: "square.grid.2x2",
+                description: Text(debouncedQuery.isEmpty
+                    ? "Your catalog snapshot has no sets in it. Rebuild it with tools/build-catalog."
+                    : "No set matches “\(debouncedQuery)”."))
+        } else {
+            List {
+                Section {
+                    ForEach(sets) { progress in
+                        NavigationLink { SetDetailView(setId: progress.setId) } label: {
+                            SetProgressBar(progress: progress)
+                                .padding(.vertical, 2)
+                        }
+                    }
+                } header: {
+                    Text(setsHeader(sets))
+                }
+            }
+            .listStyle(.plain)
+        }
+    }
+
+    private func setsHeader(_ sets: [SetProgress]) -> String {
+        let complete = sets.filter(\.isComplete).count
+        let ownedTotal = sets.reduce(0) { $0 + $1.ownedCount }
+        let cardTotal = sets.reduce(0) { $0 + $1.totalCount }
+        var out = "\(sets.count) set\(sets.count == 1 ? "" : "s") · \(ownedTotal)/\(cardTotal) cards"
+        if complete > 0 { out += " · \(complete) complete" }
+        return out
     }
 
     @ViewBuilder private func row(_ item: CardListItem) -> some View {
@@ -161,6 +238,8 @@ struct CardsView: View {
     private func emptyMessage(_ items: [CardListItem]) -> (title: String, icon: String, detail: String)? {
         if items.isEmpty {
             switch scope {
+            case .sets:
+                return nil   // setsList() shows its own empty state
             case .owned:
                 return inventory.rows.isEmpty
                     ? ("No inventory yet", "tray", "Add cards from Scan, then Sync. Pull down to refresh.")
@@ -184,6 +263,8 @@ struct CardsView: View {
             return reserved > 0 ? base + " · \(reserved) in use" : base
         case .all:
             return "\(items.count) result\(items.count == 1 ? "" : "s")"
+        case .sets:
+            return ""   // setsList() renders its own header
         }
     }
 
@@ -305,6 +386,15 @@ struct CardsView: View {
                 )
             }
     }
+}
+
+/// The inputs a set recount depends on, bundled so `.task(id:)` fires on a real change
+/// rather than on every `body`.
+private struct SetsInputs: Equatable {
+    let revision: Int
+    let standardOnly: Bool
+    let catalogLoaded: Bool
+    let active: Bool
 }
 
 /// A unified card-group row for both scopes.

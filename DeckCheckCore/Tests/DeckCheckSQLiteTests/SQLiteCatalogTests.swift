@@ -281,3 +281,68 @@ final class SQLiteCatalogSearchIndexTests: XCTestCase {
         }
     }
 }
+
+/// Set browsing — the backing for Cards → Sets. The fixture has two sets (OBF with two
+/// printings, PAF with two) and its `sets` table predates the per-set legality columns,
+/// which is deliberately left alone here: reading legality off the *cards* is what lets
+/// an older snapshot keep working.
+final class SQLiteCatalogSetBrowsingTests: XCTestCase {
+    private var path: String!
+
+    override func setUpWithError() throws { path = try CatalogFixture.make(withSearchIndex: false) }
+    override func tearDownWithError() throws { try? FileManager.default.removeItem(atPath: path) }
+
+    func testSetsCarryCountsAndMetadata() throws {
+        let sets = try SQLiteCatalog(path: path).sets()
+        XCTAssertEqual(Set(sets.map(\.setId)), ["obf", "paf"])
+
+        let obf = try XCTUnwrap(sets.first { $0.setId == "obf" })
+        XCTAssertEqual(obf.name, "Obsidian Flames")
+        XCTAssertEqual(obf.ptcgoCode, "OBF")
+        XCTAssertEqual(obf.releaseDate, "2023/08/11")
+        XCTAssertEqual(obf.printedTotal, 197)
+        XCTAssertEqual(obf.catalogCount, 2, "the two OBF printings in the snapshot")
+        XCTAssertTrue(obf.standardLegal)
+        XCTAssertTrue(obf.expandedLegal)
+    }
+
+    /// `catalogCount` is what the progress bar divides by, so it must be the number of
+    /// rows actually present — not the printed "/197", which the snapshot can't fill.
+    func testCatalogCountIsRowsPresentNotPrintedTotal() throws {
+        let obf = try XCTUnwrap(try SQLiteCatalog(path: path).sets().first { $0.setId == "obf" })
+        XCTAssertNotEqual(obf.catalogCount, obf.printedTotal)
+        XCTAssertEqual(obf.catalogCount, 2)
+    }
+
+    func testCardsInSet() throws {
+        let cat = try SQLiteCatalog(path: path)
+        XCTAssertEqual(cat.cards(setId: "obf").map(\.cardId), ["ptcg:obf-125", "ptcg:obf-197"])
+        XCTAssertEqual(cat.cards(setId: "paf").map(\.cardId), ["ptcg:paf-233", "ptcg:paf-234"])
+        XCTAssertTrue(cat.cards(setId: "nope").isEmpty)
+    }
+
+    /// Collector numbers sort numerically, not as text — otherwise "125" would follow
+    /// "9" and a set list would read out of order everywhere past card 9.
+    func testCardsInSetSortNumericallyNotLexically() throws {
+        let cat = try SQLiteCatalog(path: path)
+        XCTAssertEqual(cat.cards(setId: "obf").map(\.number), ["125", "197"])
+    }
+
+    func testEndToEndProgressAgainstARealSnapshot() throws {
+        let cat = try SQLiteCatalog(path: path)
+        let owned = [OwnedCard(cardId: "ptcg:obf-125", equivalenceKey: "char", qty: 3)]
+
+        let obf = try XCTUnwrap(SetCompletion.progress(owned: owned, catalog: cat)
+            .first { $0.setId == "obf" })
+        XCTAssertEqual(obf.ownedCount, 1)
+        XCTAssertEqual(obf.totalCount, 2)
+
+        // The PAF Charizard shares "char" with the OBF one — and still doesn't count.
+        let paf = try XCTUnwrap(SetCompletion.progress(owned: owned, catalog: cat)
+            .first { $0.setId == "paf" })
+        XCTAssertEqual(paf.ownedCount, 0)
+
+        XCTAssertEqual(SetCompletion.missing(inSet: "obf", owned: owned, catalog: cat).map(\.cardId),
+                       ["ptcg:obf-197"])
+    }
+}

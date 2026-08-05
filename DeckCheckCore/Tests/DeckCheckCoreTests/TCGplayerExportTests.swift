@@ -66,4 +66,29 @@ final class TCGplayerExportTests: XCTestCase {
             .queryItems!.first { $0.name == "q" }?.value
         XCTAssertEqual(q, "Ampharos 075")
     }
+
+    /// The set-completion buy list goes through the same formatter as the gap report,
+    /// so the padding rules can't drift between the two.
+    func testMassEntryFromACardListPadsTheSameWayAsAReport() {
+        let out = TCGplayerExport.massEntry([
+            (quantity: 1, card: Fixture.ralts),      // number 5, printed total 132
+            (quantity: 2, card: Fixture.ionoPAL),    // number 185, printed total 193
+        ])
+        XCTAssertEqual(out, """
+        1 Ralts [MEG] 005/132
+        2 Iono [PAL] 185/193
+        """)
+    }
+
+    func testMassEntryFromACardListDropsNonPositiveQuantities() {
+        let out = TCGplayerExport.massEntry([
+            (quantity: 0, card: Fixture.ralts),
+            (quantity: 1, card: Fixture.ionoPAL),
+        ])
+        XCTAssertEqual(out, "1 Iono [PAL] 185/193")
+    }
+
+    func testMassEntryFromAnEmptyListIsEmpty() {
+        XCTAssertEqual(TCGplayerExport.massEntry([]), "")
+    }
 }

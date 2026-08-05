@@ -17,9 +17,21 @@ public enum TCGplayerExport {
     /// missing → short → have, so the list stays gap-first. (A missing entry owns
     /// nothing, so its shortfall *is* the required quantity.)
     public static func massEntry(_ report: GapReport) -> String {
-        report.entries
+        massEntry(report.entries
             .filter { $0.shortQty > 0 }
-            .map { entryLine($0.shortQty, $0.representative) }
+            .map { (quantity: $0.shortQty, card: $0.representative) })
+    }
+
+    /// Mass Entry lines for an arbitrary want list, in the order given.
+    ///
+    /// The gap report isn't the only thing that produces one — set completion has a
+    /// shortfall too ("the 49 cards I still need from Surging Sparks"), and it's the
+    /// same buy list in the same format. Keeping the line formatting in one place is
+    /// the point: the zero-padding rules below are fiddly and easy to re-derive wrong.
+    public static func massEntry(_ lines: [(quantity: Int, card: CatalogCard)]) -> String {
+        lines
+            .filter { $0.quantity > 0 }
+            .map { entryLine($0.quantity, $0.card) }
             .joined(separator: "\n")
     }
 

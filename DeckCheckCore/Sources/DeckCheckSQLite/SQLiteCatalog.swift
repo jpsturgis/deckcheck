@@ -13,7 +13,7 @@ import DeckCheckCore
 /// because the connection is opened read-only, both stored properties are immutable,
 /// and Apple's SQLite is built in serialized mode, which mutexes a connection
 /// internally. `@unchecked` because none of that is something the compiler can see.
-public final class SQLiteCatalog: CatalogLookup, CatalogSearching, @unchecked Sendable {
+public final class SQLiteCatalog: CatalogLookup, CatalogSearching, CatalogSetBrowsing, @unchecked Sendable {
     private let db: OpaquePointer
 
     /// Whether this snapshot carries the `cards_fts` search index. Detected rather
@@ -169,6 +169,82 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching, @unchecked Se
         + " OR s.ptcgo_code LIKE ? COLLATE NOCASE"
         + " OR c.number LIKE ? COLLATE NOCASE"
         + " OR (c.number || '/' || s.printed_total) LIKE ? COLLATE NOCASE)"
+
+    // MARK: CatalogSetBrowsing
+
+    /// Every set that has at least one printing in this snapshot.
+    ///
+    /// An **INNER** join, so a set the builder recorded but shipped no cards for never
+    /// appears — a completion goal of 0/0 is noise. The count is `COUNT(c.card_id)`
+    /// rather than the `sets.total` column for the reason `CatalogSet.catalogCount`
+    /// documents: the denominator has to be reachable.
+    ///
+    /// Set legality is `MAX()`ed up from the cards rather than read from
+    /// `sets.standard_legal`. Two reasons: it stays true to the printings actually
+    /// present, and it works against snapshots built before those columns existed
+    /// (including this package's own test fixture) instead of failing to prepare.
+    public func sets() -> [CatalogSet] {
+        let sql = """
+        SELECT s.id, s.name, s.ptcgo_code, s.release_date, s.printed_total,
+               COUNT(c.card_id), MAX(c.standard_legal), MAX(c.expanded_legal)
+        FROM sets s JOIN cards c ON c.set_id = s.id
+        GROUP BY s.id, s.name, s.ptcgo_code, s.release_date, s.printed_total
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+
+        func text(_ i: Int32) -> String? {
+            guard let c = sqlite3_column_text(stmt, i) else { return nil }
+            return String(cString: c)
+        }
+        func intOrNil(_ i: Int32) -> Int? {
+            sqlite3_column_type(stmt, i) == SQLITE_NULL ? nil : Int(sqlite3_column_int64(stmt, i))
+        }
+
+        var out: [CatalogSet] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            out.append(CatalogSet(
+                setId: text(0) ?? "",
+                name: text(1) ?? "",
+                ptcgoCode: text(2),
+                releaseDate: text(3),
+                printedTotal: intOrNil(4),
+                catalogCount: Int(sqlite3_column_int64(stmt, 5)),
+                standardLegal: sqlite3_column_int64(stmt, 6) == 1,
+                expandedLegal: sqlite3_column_int64(stmt, 7) == 1
+            ))
+        }
+        return out
+    }
+
+    /// A set's printings in collector-number order. Numeric numbers sort numerically
+    /// (so 9 precedes 10, which a plain text sort gets wrong); gallery/trainer-gallery
+    /// numbers like "TG12" have no numeric position, so they sort as text after them.
+    public func cards(setId: String) -> [CatalogCard] {
+        query(Self.setIdWhereOrdered, [setId])
+    }
+
+    /// The counting path — see `CatalogSetBrowsing.cardIds(setId:)`. One indexed
+    /// column, no JSON parsing, no row construction. `idx_cards_set_number` covers it.
+    public func cardIds(setId: String) -> [String] {
+        var stmt: OpaquePointer?
+        let sql = "SELECT card_id FROM cards WHERE set_id = ?1"
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, setId, -1, SQLITE_TRANSIENT)
+        var out: [String] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let c = sqlite3_column_text(stmt, 0) { out.append(String(cString: c)) }
+        }
+        return out
+    }
+
+    private static let setIdWhereOrdered = """
+    c.set_id = ?1 \
+    ORDER BY (CASE WHEN c.number GLOB '[0-9]*' THEN 0 ELSE 1 END), \
+    CAST(c.number AS INTEGER), c.number
+    """
 
     // MARK: Provenance
 
