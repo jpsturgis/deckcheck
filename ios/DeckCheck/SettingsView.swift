@@ -7,6 +7,7 @@ struct SettingsView: View {
     @EnvironmentObject var outbox: Outbox
     @EnvironmentObject var sheets: GoogleSheetsService
     @EnvironmentObject var browserGapCheck: BrowserGapCheckManager
+    @EnvironmentObject var migrator: InventoryMigrator
 
     @StateObject private var artWarmer = CollectionArtWarmer()
     @State private var syncing = false
@@ -69,17 +70,17 @@ struct SettingsView: View {
                     Section {
                         Button {
                             Task {
-                                await sheets.migrateDerivedColumns(catalog: catalog.lookup,
-                                                                   normVersion: catalog.normVersion)
+                                await migrator.migrateDerivedColumns(catalog: catalog.lookup,
+                                                                     normVersion: catalog.normVersion)
                                 await model.syncNow()
                             }
                         } label: {
                             HStack {
                                 Label("Re-check card grouping", systemImage: "arrow.triangle.merge")
-                                if sheets.busy { Spacer(); ProgressView() }
+                                if migrator.busy { Spacer(); ProgressView() }
                             }
                         }
-                        .disabled(sheets.busy || !catalog.isLoaded)
+                        .disabled(migrator.busy || !catalog.isLoaded)
                     } header: {
                         Text("Card grouping")
                     } footer: {

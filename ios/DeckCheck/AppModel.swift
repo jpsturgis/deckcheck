@@ -13,9 +13,11 @@ final class AppModel: ObservableObject {
     let decks = DecksStore()             // deck tabs → "in-use" reservations
     let sheets = GoogleSheetsService()   // the inventory backend: direct Sheets API
     let browserGapCheck: BrowserGapCheckManager
+    let migrator: InventoryMigrator
 
     init() {
         browserGapCheck = BrowserGapCheckManager(sheets: sheets)
+        migrator = InventoryMigrator(sheets: sheets)
     }
 
     /// Whether writes/reads will actually go somewhere — i.e. the Sheet is connected.
