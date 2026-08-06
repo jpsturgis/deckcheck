@@ -12,6 +12,11 @@ final class AppModel: ObservableObject {
     let outbox = Outbox()
     let decks = DecksStore()             // deck tabs → "in-use" reservations
     let sheets = GoogleSheetsService()   // the inventory backend: direct Sheets API
+    let browserGapCheck: BrowserGapCheckManager
+
+    init() {
+        browserGapCheck = BrowserGapCheckManager(sheets: sheets)
+    }
 
     /// Whether writes/reads will actually go somewhere — i.e. the Sheet is connected.
     /// Drives the "Sync now" affordance.

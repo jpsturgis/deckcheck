@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject var inventory: InventoryStore
     @EnvironmentObject var outbox: Outbox
     @EnvironmentObject var sheets: GoogleSheetsService
+    @EnvironmentObject var browserGapCheck: BrowserGapCheckManager
 
     @StateObject private var artWarmer = CollectionArtWarmer()
     @State private var syncing = false
@@ -86,34 +87,34 @@ struct SettingsView: View {
                     }
 
                     Section {
-                        if sheets.browserGapCheckEnabled {
+                        if browserGapCheck.enabled {
                             Button {
-                                Task { await sheets.refreshCatalogIndex(catalog: catalog.lookup) }
+                                Task { await browserGapCheck.refreshCatalogIndex(catalog: catalog.lookup) }
                             } label: {
                                 Label("Refresh catalog index", systemImage: "arrow.clockwise")
                             }
-                            .disabled(sheets.busy || !catalog.isLoaded)
+                            .disabled(browserGapCheck.busy || !catalog.isLoaded)
                             Button(role: .destructive) {
-                                Task { await sheets.disableBrowserGapCheck() }
+                                Task { await browserGapCheck.disable() }
                             } label: {
                                 Label("Turn off in-browser gap-check", systemImage: "xmark.circle")
                             }
-                            .disabled(sheets.busy)
+                            .disabled(browserGapCheck.busy)
                         } else {
                             Button {
-                                Task { await sheets.enableBrowserGapCheck(catalog: catalog.lookup) }
+                                Task { await browserGapCheck.enable(catalog: catalog.lookup) }
                             } label: {
                                 HStack {
                                     Label("Enable in-browser gap-check", systemImage: "globe")
-                                    if sheets.busy { Spacer(); ProgressView() }
+                                    if browserGapCheck.busy { Spacer(); ProgressView() }
                                 }
                             }
-                            .disabled(sheets.busy || !catalog.isLoaded)
+                            .disabled(browserGapCheck.busy || !catalog.isLoaded)
                         }
-                        if !sheets.status.isEmpty {
-                            Text(sheets.status).font(.footnote).foregroundStyle(.secondary)
+                        if !browserGapCheck.status.isEmpty {
+                            Text(browserGapCheck.status).font(.footnote).foregroundStyle(.secondary)
                         }
-                        if let e = sheets.lastError {
+                        if let e = browserGapCheck.lastError {
                             Text(e).font(.footnote).foregroundStyle(.red)
                         }
                     } header: {
