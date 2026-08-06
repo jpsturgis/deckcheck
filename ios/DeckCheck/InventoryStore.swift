@@ -7,7 +7,7 @@ import DeckCheckCore
 /// refresh; persisted so it's available offline.
 @MainActor
 final class InventoryStore: ObservableObject {
-    @Published private(set) var rows: [InventoryRow] = []
+    @Published private(set) var rows: [ReadCacheRow] = []
     @Published private(set) var lastSyncedAt: Date?
     @Published var lastError: String?
 
@@ -70,7 +70,7 @@ final class InventoryStore: ObservableObject {
     /// Which owned printing a removal should decrement: the exact scanned
     /// printing if owned, else an owned **functional equivalent** (the printing you
     /// own the most of), else nil = not in inventory.
-    func removalTarget(cardId: String, equivalenceKey key: String) -> (row: InventoryRow, exact: Bool)? {
+    func removalTarget(cardId: String, equivalenceKey key: String) -> (row: ReadCacheRow, exact: Bool)? {
         if let exact = rows.first(where: { $0.card_id == cardId && $0.qty > 0 }) {
             return (exact, true)
         }
@@ -83,7 +83,7 @@ final class InventoryStore: ObservableObject {
 
     /// Refresh the read-cache via the active backend (injected as a closure so this
     /// works against either the v1 Apps Script client or the v2 Sheets API).
-    func refresh(fetch: () async throws -> [InventoryRow]) async {
+    func refresh(fetch: () async throws -> [ReadCacheRow]) async {
         do {
             rows = try await fetch()
             revision += 1
@@ -99,7 +99,7 @@ final class InventoryStore: ObservableObject {
 
     private func load() {
         guard let data = try? Data(contentsOf: fileURL),
-              let cached = try? JSONDecoder().decode([InventoryRow].self, from: data) else { return }
+              let cached = try? JSONDecoder().decode([ReadCacheRow].self, from: data) else { return }
         rows = cached
         revision += 1
     }

@@ -21,7 +21,7 @@ struct CardDetailView: View {
 
     /// Owned rows for a card the catalog doesn't carry — a hand-entered promo,
     /// whose `manual:` id resolves nowhere in the snapshot.
-    private var manualRows: [InventoryRow] {
+    private var manualRows: [ReadCacheRow] {
         inventory.rows.filter { ($0.card_id == cardId || $0.equivalence_key == cardId) && $0.qty > 0 }
     }
 
@@ -75,7 +75,7 @@ struct CardDetailView: View {
 
     /// Detail for a hand-entered promo, built entirely from the inventory rows (no
     /// catalog image or legality — those don't exist for it).
-    private func manualDetail(_ rows: [InventoryRow]) -> some View {
+    private func manualDetail(_ rows: [ReadCacheRow]) -> some View {
         let first = rows[0]
         let total = rows.reduce(0) { $0 + $1.qty }
         let place = first.set.isEmpty ? first.code : first.set
@@ -110,7 +110,7 @@ struct CardDetailView: View {
 
     /// Link (or change) the catalog card this promo *plays as*, after the fact.
     /// Shows the current link, or a button to set one.
-    @ViewBuilder private func playsAsSection(_ row: InventoryRow) -> some View {
+    @ViewBuilder private func playsAsSection(_ row: ReadCacheRow) -> some View {
         let linked = catalog.lookup?.cards(equivalenceKey: row.equivalence_key).orderedNewestFirst().first
         VStack(alignment: .leading, spacing: 6) {
             Text("Plays as").font(.headline)
@@ -137,7 +137,7 @@ struct CardDetailView: View {
     /// them under the linked id + key. Old and new ids differ (ManualEntry folds the key
     /// in), so both ride one outbox batch without netting. Pops back to the list
     /// afterward since this card's id has changed.
-    private func relink(_ rows: [InventoryRow], to card: CatalogCard) {
+    private func relink(_ rows: [ReadCacheRow], to card: CatalogCard) {
         guard let newCard = ManualEntry.promoCard(name: rows[0].name, code: rows[0].code,
                                                   number: rows[0].number,
                                                   equivalenceKey: card.equivalenceKey),
@@ -343,7 +343,7 @@ struct CardDetailView: View {
         Task { await model.syncNow() }
     }
 
-    private func ownedLine(_ r: InventoryRow) -> String {
+    private func ownedLine(_ r: ReadCacheRow) -> String {
         let place = r.set.isEmpty ? r.code : r.set
         var line = "\(place) \(r.number) ×\(r.qty)"
         if !r.location.isEmpty { line += "  ·  \(r.location)" }

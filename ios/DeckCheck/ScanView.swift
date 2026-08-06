@@ -28,7 +28,7 @@ struct ScanView: View {
 
     /// Which owned printing a Remove would decrement (exact, else a functional
     /// equivalent); nil = you own none, so Remove is disabled.
-    private func removalTarget(for item: BatchItem) -> (row: InventoryRow, exact: Bool)? {
+    private func removalTarget(for item: BatchItem) -> (row: ReadCacheRow, exact: Bool)? {
         guard let c = item.chosen else { return nil }
         return inventory.removalTarget(cardId: c.cardId, equivalenceKey: c.equivalenceKey)
     }
