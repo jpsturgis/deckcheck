@@ -43,6 +43,26 @@ public struct SearchResultGroup: Equatable {
     }
 }
 
+/// One owned printing within an Owned-scope group: the Sheet row plus its catalog
+/// resolution — `card` is nil for a hand-entered promo the catalog doesn't carry.
+public struct OwnedRowPrinting: Equatable {
+    public let row: InventoryRow
+    public let card: CatalogCard?
+    public init(row: InventoryRow, card: CatalogCard?) { self.row = row; self.card = card }
+}
+
+/// One equivalence-group of owned printings — the Owned scope's browse unit.
+public struct OwnedGroup: Equatable {
+    public let equivalenceKey: String
+    public let name: String
+    public let ownedCount: Int              // Σ qty across the group's rows
+    public let printings: [OwnedRowPrinting] // newest catalog printing first
+    public init(equivalenceKey: String, name: String, ownedCount: Int, printings: [OwnedRowPrinting]) {
+        self.equivalenceKey = equivalenceKey; self.name = name
+        self.ownedCount = ownedCount; self.printings = printings
+    }
+}
+
 public enum SearchService {
     /// How the result groups are ordered (owned always sort first either way).
     public enum GroupOrder {
@@ -109,5 +129,61 @@ public enum SearchService {
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
         return Array(groups.prefix(maxGroups))
+    }
+
+    /// Group the owned Sheet rows matching `query` by equivalence key — the Owned
+    /// scope's source of groups. Unlike `search`, this starts from the rows you
+    /// actually have rather than a catalog query, so a hand-entered promo with no
+    /// catalog printing of its own still appears, grouped by its equivalence key.
+    ///
+    /// `resolved` is the caller's own row-id → `CatalogCard` lookup (the app keeps one
+    /// memoized per inventory revision) — this never resolves a card itself, so it
+    /// costs no catalog reads beyond what the caller already paid for. It must come
+    /// from `catalog`: a row missing from `resolved` is treated as uncataloged (its
+    /// legality falls back to its equivalence group) regardless of whether `catalog`
+    /// could actually resolve it.
+    public static func ownedGroups(query: String, rows: [InventoryRow],
+                                   resolved: [String: CatalogCard],
+                                   catalog: (any CatalogLookup)?,
+                                   lens: LegalityFormat? = nil) -> [OwnedGroup] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var keyOrder: [String] = []
+        var byKey: [String: [InventoryRow]] = [:]
+        for row in rows where row.qty > 0 {
+            if !q.isEmpty && !row.name.lowercased().contains(q) { continue }
+            if byKey[row.equivalenceKey] == nil { keyOrder.append(row.equivalenceKey) }
+            byKey[row.equivalenceKey, default: []].append(row)
+        }
+
+        // Every key in keyOrder was added the moment its bucket got a first row, so
+        // `byKey[key]!` is never empty here.
+        let groups: [OwnedGroup] = keyOrder.compactMap { key in
+            let printings = byKey[key]!
+                .map { OwnedRowPrinting(row: $0, card: resolved[$0.cardId]) }
+                .sorted { a, b in
+                    let da = a.card?.releaseDate ?? "", db = b.card?.releaseDate ?? ""
+                    if da != db { return da > db }
+                    return (a.row.set, a.row.number) < (b.row.set, b.row.number)
+                }
+            guard groupIsLegal(printings, equivalenceKey: key, catalog: catalog, lens: lens) else { return nil }
+            return OwnedGroup(equivalenceKey: key, name: printings[0].row.name,
+                              ownedCount: printings.reduce(0) { $0 + $1.row.qty },
+                              printings: printings)
+        }
+        return groups.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// A group passes the lens if any owned printing is legal. A promo with no
+    /// catalog printing of its own is judged by its equivalence group instead — the
+    /// same fallback `search`'s per-printing `formatLegal` doesn't need, because
+    /// there every printing comes from the catalog already.
+    private static func groupIsLegal(_ printings: [OwnedRowPrinting], equivalenceKey: String,
+                                     catalog: (any CatalogLookup)?, lens: LegalityFormat?) -> Bool {
+        guard let lens else { return true }
+        func legal(_ c: CatalogCard) -> Bool { lens == .standard ? c.standardLegal : c.expandedLegal }
+        return printings.contains { p in
+            if let c = p.card { return legal(c) }
+            return (catalog?.cards(equivalenceKey: equivalenceKey) ?? []).contains(where: legal)
+        }
     }
 }

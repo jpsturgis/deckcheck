@@ -91,4 +91,16 @@ extension Array where Element == InventoryRow {
     var ownedCards: [OwnedCard] {
         map { OwnedCard(cardId: $0.card_id, equivalenceKey: $0.equivalence_key, qty: $0.qty) }
     }
+
+    /// Map the read-cache to the engines' full owned-row view — `SearchService
+    /// .ownedGroups`'s input. Same facts, Core's field names and optionality
+    /// (blank strings become `nil`).
+    var asCoreRows: [DeckCheckCore.InventoryRow] {
+        map {
+            DeckCheckCore.InventoryRow(
+                name: $0.name, set: $0.set, code: $0.code.isEmpty ? nil : $0.code,
+                number: $0.number, qty: $0.qty, location: $0.location.isEmpty ? nil : $0.location,
+                cardId: $0.card_id, equivalenceKey: $0.equivalence_key, normVersion: $0.norm_version)
+        }
+    }
 }
