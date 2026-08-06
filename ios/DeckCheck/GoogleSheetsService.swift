@@ -8,8 +8,8 @@ import DeckCheckCore
 // executor. This is the seam the real intake/removal flows will call in milestone 3;
 // for now it also offers a read + write-round-trip self-test to prove the wiring.
 //
-// NOTE: the app defines its own `InventoryRow` (Models.swift, the v1 Apps Script
-// shape), so the v2 code qualifies the core row type as `DeckCheckCore.InventoryRow`.
+// NOTE: the app's own read-cache row type is `ReadCacheRow` (Models.swift) — distinct
+// from `InventoryRow` here, so no qualification is needed for either.
 //
 // The in-browser gap-check bound-script feature lives in its own
 // BrowserGapCheckManager, built on this connection's `token()` + `sheetRef` — a
@@ -96,7 +96,7 @@ final class GoogleSheetsService: ObservableObject {
     func testWriteRoundTrip() async {
         await run("Write self-test…") {
             guard let ref = self.sheetRef else { throw Fail("Create the Inventory sheet first.") }
-            let probe = DeckCheckCore.InventoryRow(
+            let probe = InventoryRow(
                 name: "SELF-TEST (safe to delete)", set: "—", code: nil, number: "0", qty: 1,
                 location: nil, cardId: "selftest-0", equivalenceKey: "selftest", normVersion: "v1")
 
@@ -130,11 +130,11 @@ final class GoogleSheetsService: ObservableObject {
     var isConnected: Bool { isConfigured && isSignedIn && sheetRef != nil }
 
     /// Read the whole Inventory tab into the app's read-cache rows.
-    func fetchInventory() async throws -> [InventoryRow] {
+    func fetchInventory() async throws -> [ReadCacheRow] {
         let table = try await loadInventory()
         return table.rows.map { placed in
             let r = placed.row
-            return InventoryRow(card_id: r.cardId, name: r.name, set: r.set, code: r.code ?? "",
+            return ReadCacheRow(card_id: r.cardId, name: r.name, set: r.set, code: r.code ?? "",
                                 number: r.number, qty: r.qty, location: r.location ?? "",
                                 equivalence_key: r.equivalenceKey, norm_version: r.normVersion)
         }
@@ -281,7 +281,7 @@ final class GoogleSheetsService: ObservableObject {
         let changes: [InventoryChange] = ops.map { op in
             switch op.op {
             case .intake:
-                let row = DeckCheckCore.InventoryRow(
+                let row = InventoryRow(
                     name: op.name, set: op.set, code: op.code.isEmpty ? nil : op.code,
                     number: op.number, qty: 1, location: op.location.isEmpty ? nil : op.location,
                     cardId: op.card_id, equivalenceKey: op.equivalence_key, normVersion: op.norm_version)

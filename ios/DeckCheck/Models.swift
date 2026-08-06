@@ -2,17 +2,23 @@ import Foundation
 import DeckCheckCore
 
 // Value types for the Google Sheet ↔ app boundary: the read-cache row
-// (InventoryRow) and a pending outbox mutation (OutboxOp). The Sheets API read is
+// (ReadCacheRow) and a pending outbox mutation (OutboxOp). The Sheets API read is
 // mapped into these in GoogleSheetsService.
 
 /// One inventory row as the Sheet stores it — the local read-cache element.
+///
+/// Named apart from `DeckCheckCore.InventoryRow` on purpose: that's the Sheet-row
+/// domain type `SyncPlanner` reconciles against (camelCase, optional code/location),
+/// this is the read-cache's own on-disk/JSON shape (snake_case, matching the Sheet's
+/// column headers). Same facts, different job — see `GoogleSheetsService
+/// .fetchInventory` for where one becomes the other.
 ///
 /// Google Sheets silently stores numeric-looking cells as *numbers*, so `doGet` can
 /// return `number`, `code`, etc. as JSON numbers rather than strings. Decoding is
 /// therefore tolerant: every text field accepts a string OR a number and coerces to
 /// String, and `qty` accepts either. (Encoding — for the on-disk cache — is the plain
 /// synthesized form.)
-struct InventoryRow: Codable, Identifiable, Equatable {
+struct ReadCacheRow: Codable, Identifiable, Equatable {
     var card_id: String
     var name: String
     var set: String
@@ -86,7 +92,7 @@ struct OutboxOp: Codable, Identifiable, Equatable {
     var norm_version: String = ""
 }
 
-extension Array where Element == InventoryRow {
+extension Array where Element == ReadCacheRow {
     /// Map the read-cache to the engines' owned-copy view.
     var ownedCards: [OwnedCard] {
         map { OwnedCard(cardId: $0.card_id, equivalenceKey: $0.equivalence_key, qty: $0.qty) }
