@@ -271,56 +271,40 @@ struct CardsView: View {
     // MARK: - sources
 
     private func ownedItems() -> [CardListItem] {
-        let q = debouncedQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        var byKey: [String: [InventoryRow]] = [:]
-        var order: [String] = []
-        for row in inventory.rows where row.qty > 0 {
-            if !q.isEmpty && !row.name.lowercased().contains(q) { continue }
-            if byKey[row.equivalence_key] == nil { order.append(row.equivalence_key) }
-            byKey[row.equivalence_key, default: []].append(row)
-        }
-
         // Every owned printing resolved against the catalog — the release date the sort
         // needs and the image URL the row needs. This used to be looked up inside the
         // sort comparator (two SQLite queries per comparison, ~n log n per pass), then
         // once per pass, and is now once per *inventory change*: typing, toggling a
         // filter and scrolling all reuse it. See docs/performance.md.
-        let cards = inventory.resolvedCards(using: catalog.lookup)
+        let resolved = inventory.resolvedCards(using: catalog.lookup)
 
-        return order.map { key -> CardListItem in
-            // Newest printing first; the sheet cache has no release date, so it comes
-            // from the catalog. Rows the catalog can't place (manual promos) fall back
-            // to set/number ordering behind the dated ones.
-            let printings = byKey[key]!.sorted { a, b in
-                let da = cards[a.card_id]?.releaseDate ?? ""
-                let db = cards[b.card_id]?.releaseDate ?? ""
-                if da != db { return da > db }
-                return (a.set, a.number) < (b.set, b.number)
-            }
-            let first = printings.first
+        let groups = SearchService.ownedGroups(query: debouncedQuery, rows: inventory.rows.asCoreRows,
+                                               resolved: resolved, catalog: catalog.lookup,
+                                               lens: legalityFormat)
+
+        return groups.map { group -> CardListItem in
+            let first = group.printings.first
             return CardListItem(
-                id: key,
-                name: first?.name ?? "—",
-                ownedCount: printings.reduce(0) { $0 + $1.qty },
-                ownedPrintings: printings.map {
+                id: group.equivalenceKey,
+                name: group.name,
+                ownedCount: group.ownedCount,
+                ownedPrintings: group.printings.map {
                     // A linked promo reads as its equivalent card's designation:
                     // "MEP 075" shows as "CRI 029/086". Unlinked promos keep their own.
-                    let designation = linkedDesignation($0) ?? "\($0.set.isEmpty ? $0.code : $0.set) \($0.number)"
-                    var label = "\(designation) ×\($0.qty)"
-                    if !$0.location.isEmpty { label += "  ·  \($0.location)" }
-                    return CardListItem.Printing(id: $0.card_id, label: label)
+                    let designation = linkedDesignation($0) ?? "\($0.row.set.isEmpty ? ($0.row.code ?? "") : $0.row.set) \($0.row.number)"
+                    var label = "\(designation) ×\($0.row.qty)"
+                    if let loc = $0.row.location, !loc.isEmpty { label += "  ·  \(loc)" }
+                    return CardListItem.Printing(id: $0.row.cardId, label: label)
                 },
-                printingCount: printings.count,
-                thumbnailCardId: first?.card_id,
+                printingCount: group.printings.count,
+                thumbnailCardId: first?.row.cardId,
                 formatLegal: nil,
-                isPromo: ManualEntry.isManual(first?.card_id ?? ""),
-                reserved: decks.reserved(forKey: key),
-                thumbnailURL: first.flatMap { cards[$0.card_id]?.imageSmall } ?? borrowedArt(forKey: key)
+                isPromo: ManualEntry.isManual(first?.row.cardId ?? ""),
+                reserved: decks.reserved(forKey: group.equivalenceKey),
+                thumbnailURL: first?.card?.imageSmall ?? borrowedArt(forKey: group.equivalenceKey)
             )
         }
-        .filter { legalityFormat == nil || ownedGroupIsLegal($0) }
         .filter { !freeOnly || $0.available > 0 }
-        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     /// A manual promo (or an imageless printing) has no art of its own — borrow the
@@ -333,9 +317,9 @@ struct CardsView: View {
     /// A linked promo's display designation — its *equivalent* catalog card's code +
     /// zero-padded number/total (e.g. "CRI 029/086") — so it reads as that card in the
     /// list. nil for real cards and unlinked promos (they keep their own set/number).
-    private func linkedDesignation(_ row: InventoryRow) -> String? {
-        guard ManualEntry.isManual(row.card_id),
-              let rep = catalog.lookup?.cards(equivalenceKey: row.equivalence_key).orderedNewestFirst().first
+    private func linkedDesignation(_ printing: OwnedRowPrinting) -> String? {
+        guard ManualEntry.isManual(printing.row.cardId),
+              let rep = catalog.lookup?.cards(equivalenceKey: printing.row.equivalenceKey).orderedNewestFirst().first
         else { return nil }
         let code = rep.ptcgoCode ?? rep.setName
         let number: String
@@ -348,18 +332,6 @@ struct CardsView: View {
             number = rep.number
         }
         return "\(code) \(number)".trimmingCharacters(in: .whitespaces)
-    }
-
-    /// An owned group passes the filter if any owned printing is legal in the format.
-    /// A promo's own `manual:` id isn't in the catalog, so judge it by its linked
-    /// equivalent card(s) (the group key) instead of dropping it.
-    private func ownedGroupIsLegal(_ item: CardListItem) -> Bool {
-        guard let fmt = legalityFormat else { return true }
-        func legal(_ c: CatalogCard) -> Bool { fmt == .standard ? c.standardLegal : c.expandedLegal }
-        return item.ownedPrintings.contains { p in
-            if let c = catalog.lookup?.card(byId: p.id) { return legal(c) }
-            return (catalog.lookup?.cards(equivalenceKey: item.id) ?? []).contains(where: legal)
-        }
     }
 
     private func allItems() -> [CardListItem] {
