@@ -10,21 +10,23 @@ final class CatalogCardDesignationTests: XCTestCase {
         XCTAssertEqual(Fixture.ralts.designation(), "005/132")
     }
 
-    func testMinWidthFloorsTheNumberEvenForASmallTotal() {
-        let small = CatalogCard(cardId: "x-5", setId: "x", setName: "Small Set", ptcgoCode: "SML",
-                                number: "5", name: "Test", supertype: .pokemon, equivalenceKey: "t",
-                                standardLegal: true, expandedLegal: true, printedTotal: 25)
-        XCTAssertEqual(small.designation(), "05/25")          // Mass Entry: total's own width
-        XCTAssertEqual(small.designation(minWidth: 3), "005/25") // on-card: floor of 3
+    func testMinWidthFloorsBothNumberAndTotalForASmallTotal() {
+        // Carnivine, real card: number "4", total 86 — the on-card corner reads
+        // "004/086", not "004/86". minWidth: 3 floors both to match.
+        let carnivine = CatalogCard(cardId: "x-4", setId: "x", setName: "Small Set", ptcgoCode: "SML",
+                                    number: "4", name: "Carnivine", supertype: .pokemon, equivalenceKey: "t",
+                                    standardLegal: true, expandedLegal: true, printedTotal: 86)
+        XCTAssertEqual(carnivine.designation(), "04/86")          // Mass Entry: total's own width
+        XCTAssertEqual(carnivine.designation(minWidth: 3), "004/086") // on-card: floor of 3, both sides
     }
 
-    func testTotalIsNeverPaddedOnlyTheNumberIs() {
+    func testNumberWiderThanTotalPadsTheTotalToMatch() {
         // A number with more digits than the total (a secret rare beyond the printed
-        // count) pads to the number's width — the total prints exactly as stored.
+        // count) pads the total up to the number's width too.
         let secret = CatalogCard(cardId: "x-150", setId: "x", setName: "Small Set", ptcgoCode: "SML",
                                  number: "150", name: "Test", supertype: .pokemon, equivalenceKey: "t",
                                  standardLegal: true, expandedLegal: true, printedTotal: 99)
-        XCTAssertEqual(secret.designation(), "150/99")
+        XCTAssertEqual(secret.designation(), "150/099")
     }
 
     func testZeroTotalPassesNumberThroughUnchanged() {
