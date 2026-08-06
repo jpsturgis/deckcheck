@@ -62,20 +62,8 @@ public enum TCGplayerExport {
         return "\(qty) \(card.name) [\(code)] \(numberField(card))"
     }
 
-    /// `058/132` — zero-pad a purely-numeric collector number to the printed total's
-    /// width and append the total. Non-numeric numbers (TG/GG galleries) or a missing
-    /// total pass through unchanged.
-    ///
-    /// A total of **zero** counts as missing, not as a total. Promo sets carry
-    /// `printed_total = 0` in the snapshot — a black star promo prints its number with
-    /// no "/total" at all — and treating that as real emitted `5/0`, which Mass Entry
-    /// can't match against anything.
+    /// `058/132` — Mass Entry's padding convention. See `CatalogCard.designation(minWidth:)`.
     private static func numberField(_ card: CatalogCard) -> String {
-        guard let total = card.printedTotal, total > 0, card.number.allSatisfy(\.isNumber) else {
-            return card.number
-        }
-        let width = max(String(total).count, card.number.count)
-        let padded = String(repeating: "0", count: width - card.number.count) + card.number
-        return "\(padded)/\(total)"
+        card.designation()
     }
 }
