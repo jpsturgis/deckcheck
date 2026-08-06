@@ -23,6 +23,7 @@ struct DeckCheckApp: App {
                 .environmentObject(model.decks)
                 .environmentObject(model.sheets)
                 .environmentObject(model.browserGapCheck)
+                .environmentObject(model.migrator)
                 .task { await model.syncNow() } // flush + refresh on launch
         }
     }
