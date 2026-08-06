@@ -322,16 +322,9 @@ struct CardsView: View {
               let rep = catalog.lookup?.cards(equivalenceKey: printing.row.equivalenceKey).orderedNewestFirst().first
         else { return nil }
         let code = rep.ptcgoCode ?? rep.setName
-        let number: String
-        if let total = rep.printedTotal, rep.number.allSatisfy(\.isNumber) {
-            // Zero-pad both to ≥3 digits, the printed-card convention → "029/086".
-            let width = max(3, String(total).count, rep.number.count)
-            func pad(_ s: String) -> String { String(repeating: "0", count: max(0, width - s.count)) + s }
-            number = "\(pad(rep.number))/\(pad(String(total)))"
-        } else {
-            number = rep.number
-        }
-        return "\(code) \(number)".trimmingCharacters(in: .whitespaces)
+        // The printed-card convention: floor the number at 3 digits. See
+        // `CatalogCard.designation`.
+        return "\(code) \(rep.designation(minWidth: 3))".trimmingCharacters(in: .whitespaces)
     }
 
     private func allItems() -> [CardListItem] {

@@ -86,10 +86,9 @@ struct SetDetailView: View {
         guard let lookup = catalog.lookup else { return }
         progress = SetCompletion.progress(forSet: setId, owned: inventory.owned, catalog: lookup)
 
-        let ownedIds = Set(inventory.owned.lazy.filter { $0.qty > 0 }.map(\.cardId))
-        let all = lookup.cards(setId: setId)
-        missing = all.filter { !ownedIds.contains($0.cardId) }
-        owned = all.filter { ownedIds.contains($0.cardId) }
+        missing = SetCompletion.missing(inSet: setId, owned: inventory.owned, catalog: lookup)
+        let missingIds = Set(missing.map(\.cardId))
+        owned = lookup.cards(setId: setId).filter { !missingIds.contains($0.cardId) }
         copied = false
 
         // A complete set would otherwise open on an empty Missing list. Only on first
@@ -166,15 +165,7 @@ private struct SetCardRow: View {
         .padding(.vertical, 2)
     }
 
-    /// "125/197" where the set has a printed total, else the bare collector number.
-    /// Zero is "no total", not a total — promo sets carry 0, and a black star promo
-    /// prints its number without one. See `TCGplayerExport.numberField`.
-    private var designation: String {
-        guard let total = card.printedTotal, total > 0, card.number.allSatisfy(\.isNumber) else {
-            return card.number
-        }
-        let width = max(3, String(total).count, card.number.count)
-        func pad(_ s: String) -> String { String(repeating: "0", count: max(0, width - s.count)) + s }
-        return "\(pad(card.number))/\(pad(String(total)))"
-    }
+    /// "125/197" where the set has a printed total, else the bare collector number —
+    /// the printed-card convention (floor of 3 digits). See `CatalogCard.designation`.
+    private var designation: String { card.designation(minWidth: 3) }
 }

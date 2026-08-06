@@ -62,6 +62,27 @@ public extension Sequence where Element == CatalogCard {
     }
 }
 
+public extension CatalogCard {
+    /// `058/132` — zero-pad both the collector number and the total to at least
+    /// `minWidth` (and to each other's width, whichever is wider) — matching the
+    /// printed-card convention of a low total like 86 reading "086" (e.g. Carnivine
+    /// "004/086", not "004/86"). Non-numeric numbers (TG/GG galleries) pass through
+    /// unchanged, and so does a **zero** total: promo sets carry `printedTotal = 0`,
+    /// and a black star promo prints its number with no "/total" at all — treating
+    /// zero as real would emit "5/0", which nothing can match against.
+    ///
+    /// `minWidth: 0` (the default) is TCGplayer Mass Entry's own convention — pad to
+    /// the wider of the two, no floor. The printed-card convention on the card itself
+    /// additionally floors both at 3 digits regardless of the total ("029/086"); pass
+    /// `minWidth: 3` for that.
+    func designation(minWidth: Int = 0) -> String {
+        guard let total = printedTotal, total > 0, number.allSatisfy(\.isNumber) else { return number }
+        let width = max(minWidth, String(total).count, number.count)
+        func pad(_ s: String) -> String { String(repeating: "0", count: max(0, width - s.count)) + s }
+        return "\(pad(number))/\(pad(String(total)))"
+    }
+}
+
 /// An owned printing, as it comes from the inventory Sheet: the machine
 /// columns the diff needs. `equivalenceKey` is denormalized in the Sheet;
 /// per-printing legality is looked up from the catalog by `cardId` when needed.
