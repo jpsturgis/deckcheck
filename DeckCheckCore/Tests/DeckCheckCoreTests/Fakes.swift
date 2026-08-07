@@ -20,6 +20,9 @@ struct FakeCatalog: CatalogLookup {
     func cards(equivalenceKey: String) -> [CatalogCard] {
         all.filter { $0.equivalenceKey == equivalenceKey }
     }
+    func cards(name: String) -> [CatalogCard] {
+        all.filter { Normalize.name($0.name) == Normalize.name(name) }
+    }
 
     func searchByName(_ query: String, rowLimit: Int) -> [CatalogCard] {
         let tokens = SearchMatch.tokens(query)
@@ -77,21 +80,21 @@ enum Fixture {
     static let ionoPAL = CatalogCard(cardId: "ptcg:pal-185", setId: "pal", setName: "Paldea Evolved",
         ptcgoCode: "PAL", number: "185", name: "Iono", supertype: .trainer,
         equivalenceKey: "iono", standardLegal: true, expandedLegal: true, regulationMark: "G",
-        printedTotal: 193, releaseDate: "2023/06/09")
+        printedTotal: 193, releaseDate: "2023/06/09", subtypes: ["Supporter"])
     static let ionoPAF = CatalogCard(cardId: "ptcg:paf-237", setId: "paf", setName: "Paldean Fates",
         ptcgoCode: "PAF", number: "237", name: "Iono", supertype: .trainer,
         equivalenceKey: "iono", standardLegal: true, expandedLegal: true, regulationMark: "H",
-        releaseDate: "2024/01/26")
+        releaseDate: "2024/01/26", subtypes: ["Supporter"])
 
     // Boss's Orders — same key "boss": one rotated (not standard-legal), one legal reprint
     static let bossRCL = CatalogCard(cardId: "ptcg:rcl-154", setId: "rcl", setName: "Rebel Clash",
         ptcgoCode: "RCL", number: "154", name: "Boss's Orders", supertype: .trainer,
         equivalenceKey: "boss", standardLegal: false, expandedLegal: true, regulationMark: nil,
-        releaseDate: "2020/05/01")
+        releaseDate: "2020/05/01", subtypes: ["Supporter"])
     static let bossPAL = CatalogCard(cardId: "ptcg:pal-172", setId: "pal", setName: "Paldea Evolved",
         ptcgoCode: "PAL", number: "172", name: "Boss's Orders", supertype: .trainer,
         equivalenceKey: "boss", standardLegal: true, expandedLegal: true, regulationMark: "G",
-        printedTotal: 193, releaseDate: "2023/06/09")
+        printedTotal: 193, releaseDate: "2023/06/09", subtypes: ["Supporter"])
 
     // Low collector number to exercise zero-padding: "5" + total 132 → "005/132".
     static let ralts = CatalogCard(cardId: "ptcg:meg-5", setId: "meg", setName: "Mega Evolution",
@@ -116,13 +119,14 @@ enum Fixture {
     static let fireEnergyMEE = CatalogCard(cardId: "ptcg:mee-2", setId: "mee",
         setName: "Mega Evolution Energy", ptcgoCode: "MEE", number: "2", name: "Fire Energy",
         supertype: .energy, equivalenceKey: "energy-fire", standardLegal: true, expandedLegal: true,
-        regulationMark: nil, printedTotal: 8, releaseDate: "2025/09/25")
+        regulationMark: nil, printedTotal: 8, releaseDate: "2025/09/25", subtypes: ["Normal"])
 
     // Special energy IS tracked — it must never be mistaken for basic energy.
     static let reversalEnergy = CatalogCard(cardId: "ptcg:par-192", setId: "par",
         setName: "Paradox Rift", ptcgoCode: "PAR", number: "192", name: "Reversal Energy",
         supertype: .energy, equivalenceKey: "energy-reversal", standardLegal: true,
-        expandedLegal: true, regulationMark: "H", printedTotal: 182, releaseDate: "2023/11/03")
+        expandedLegal: true, regulationMark: "H", printedTotal: 182, releaseDate: "2023/11/03",
+        subtypes: ["Special"])
 
     // ── errata splits: same card, reworded, so the hash puts them in different groups ──
     // Both pairs are real. Energy Retrieval AOR 99 reads "Put 2 basic Energy cards…"
@@ -154,9 +158,42 @@ enum Fixture {
         supertype: .trainer, equivalenceKey: "balloon-new", standardLegal: true, expandedLegal: true,
         regulationMark: "I", printedTotal: 132, releaseDate: "2025/09/26", subtypes: ["Tool"])
 
+    // ── deck-order fixtures: a 3-stage evolution family, an ace spec, a Stadium ──
+
+    static let squirtle = CatalogCard(cardId: "ptcg:tst-1", setId: "tst", setName: "Test Set",
+        ptcgoCode: "TST", number: "1", name: "Squirtle", supertype: .pokemon,
+        equivalenceKey: "squirtle", standardLegal: true, expandedLegal: true,
+        subtypes: ["Basic"])
+    static let wartortle = CatalogCard(cardId: "ptcg:tst-2", setId: "tst", setName: "Test Set",
+        ptcgoCode: "TST", number: "2", name: "Wartortle", supertype: .pokemon,
+        equivalenceKey: "wartortle", standardLegal: true, expandedLegal: true,
+        subtypes: ["Stage1"], evolvesFrom: "Squirtle")
+    static let blastoise = CatalogCard(cardId: "ptcg:tst-3", setId: "tst", setName: "Test Set",
+        ptcgoCode: "TST", number: "3", name: "Blastoise", supertype: .pokemon,
+        equivalenceKey: "blastoise", standardLegal: true, expandedLegal: true,
+        subtypes: ["Stage2"], evolvesFrom: "Wartortle")
+
+    /// Same family, but its `evolvesFrom` chain is missing (the ~3% of legacy-format
+    /// printings the real snapshot has) — exercises the `stage` subtype fallback.
+    static let legacyStage2NoChain = CatalogCard(cardId: "ptcg:tst-9", setId: "tst",
+        setName: "Test Set", ptcgoCode: "TST", number: "9", name: "Legacy Stage 2",
+        supertype: .pokemon, equivalenceKey: "legacy-stage2", standardLegal: true,
+        expandedLegal: true, subtypes: ["Stage2"])
+
+    static let aceSpecItem = CatalogCard(cardId: "ptcg:tst-4", setId: "tst", setName: "Test Set",
+        ptcgoCode: "TST", number: "4", name: "Prime Catcher", supertype: .trainer,
+        equivalenceKey: "prime-catcher", standardLegal: true, expandedLegal: true,
+        subtypes: ["Item"], isAceSpec: true)
+
+    static let testStadium = CatalogCard(cardId: "ptcg:tst-5", setId: "tst", setName: "Test Set",
+        ptcgoCode: "TST", number: "5", name: "Test Stadium", supertype: .trainer,
+        equivalenceKey: "test-stadium", standardLegal: true, expandedLegal: true,
+        subtypes: ["Stadium"])
+
     static let catalog = FakeCatalog(all: [
         charOBF, charPAF, ionoPAL, ionoPAF, bossRCL, bossPAL, dupA, dupB, ralts,
         fireEnergyMEE, reversalEnergy,
         energyRetrievalAOR, energyRetrievalSVI, energyRetrievalCRI, airBalloonSSH, airBalloonMEG,
+        squirtle, wartortle, blastoise, legacyStage2NoChain, aceSpecItem, testStadium,
     ])
 }

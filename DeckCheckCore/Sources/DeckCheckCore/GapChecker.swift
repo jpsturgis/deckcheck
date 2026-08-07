@@ -97,9 +97,20 @@ public enum GapChecker {
             ))
         }
 
-        // gap-first ordering: missing → short → have, then by name
+        // gap-first ordering: missing → short → have, then the deck-order comparator
+        // (Pokémon in evolution order → Item → Tool → Supporter → Stadium → other
+        // Trainer → Special Energy → Basic Energy, ace specs first within their type).
+        let orderKeys = Self.deckOrderKeys(for: entries, catalog: catalog)
         entries.sort { a, b in
             if rank(a.status) != rank(b.status) { return rank(a.status) < rank(b.status) }
+            guard let ka = orderKeys[a.equivalenceKey], let kb = orderKeys[b.equivalenceKey] else {
+                return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }
+            if ka.category != kb.category { return ka.category < kb.category }
+            if ka.aceSpec != kb.aceSpec { return ka.aceSpec < kb.aceSpec }
+            let familyOrder = ka.familyRoot.localizedCaseInsensitiveCompare(kb.familyRoot)
+            if familyOrder != .orderedSame { return familyOrder == .orderedAscending }
+            if ka.stageDepth != kb.stageDepth { return ka.stageDepth < kb.stageDepth }
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
 
@@ -151,5 +162,64 @@ public enum GapChecker {
 
     private static func rank(_ s: CardStatus) -> Int {
         switch s { case .missing: return 0; case .short: return 1; case .have: return 2 }
+    }
+
+    // MARK: - deck order (Pokémon evolution order → Trainer tiers → Energy)
+
+    private struct DeckOrderKey {
+        let category: Int      // 0 Pokémon, 1 Item, 2 Tool, 3 Supporter, 4 Stadium,
+                                // 5 other Trainer, 6 Special Energy, 7 Basic Energy, 8 unknown
+        let aceSpec: Int       // 0 = ace spec (sorts first within its tier), 1 = everything else
+        let familyRoot: String // Pokémon: the family's base name; everything else: its own name
+        let stageDepth: Int    // hops below familyRoot (0 = Basic / non-Pokémon)
+    }
+
+    private static func deckOrderKeys(for entries: [GapEntry], catalog: CatalogLookup) -> [String: DeckOrderKey] {
+        var keys: [String: DeckOrderKey] = [:]
+        for entry in entries {
+            keys[entry.equivalenceKey] = deckOrderKey(entry.representative, catalog: catalog)
+        }
+        return keys
+    }
+
+    private static func deckOrderKey(_ card: CatalogCard, catalog: CatalogLookup) -> DeckOrderKey {
+        let category: Int
+        switch card.supertype {
+        case .pokemon: category = 0
+        case .trainer:
+            switch card.subtypes.first {
+            case "Item": category = 1
+            case "Tool": category = 2
+            case "Supporter": category = 3
+            case "Stadium": category = 4
+            default: category = 5   // e.g. Technical Machine, Rocket's Secret Machine
+            }
+        case .energy: category = card.subtypes.first == "Special" ? 6 : 7
+        case .unknown: category = 8
+        }
+
+        let (root, depth) = card.supertype == .pokemon
+            ? evolutionPosition(card, catalog: catalog) : (card.name, 0)
+        return DeckOrderKey(category: category, aceSpec: card.isAceSpec ? 0 : 1,
+                            familyRoot: root, stageDepth: depth)
+    }
+
+    /// Walks a Pokémon's `evolvesFrom` chain (capped at 5 hops, guarding against bad or
+    /// cyclic data) to find its family's root name and this printing's depth below it —
+    /// the signal behind "evolution order, where applicable". A card whose chain can't
+    /// be walked (no `evolvesFrom`, or an ancestor name the catalog doesn't have — a
+    /// real gap in some older/legacy-format printings) is its own family of one: it
+    /// still sorts into the Pokémon tier, just not clustered with any relatives.
+    private static func evolutionPosition(_ card: CatalogCard, catalog: CatalogLookup) -> (root: String, depth: Int) {
+        var current = card
+        var depth = 0
+        var visited: Set<String> = [Normalize.name(card.name)]
+        while let ancestorName = current.evolvesFrom, depth < 5 {
+            guard let ancestor = catalog.cards(name: ancestorName).first,
+                  visited.insert(Normalize.name(ancestor.name)).inserted else { break }
+            current = ancestor
+            depth += 1
+        }
+        return (current.name, depth)
     }
 }
