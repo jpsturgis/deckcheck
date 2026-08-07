@@ -31,12 +31,15 @@ public struct CatalogCard: Equatable {
     public let imageLarge: String?     // full card image URL, for the detail view
     public let releaseDate: String?    // the set's release date, "YYYY/MM/DD" — sorts printings newest-first
     public let hp: String?             // HP, e.g. "160" — a recognizer disambiguator; nil for Trainer/Energy
+    public let evolvesFrom: String?    // Pokémon only — the pre-evolution's name, nil for Basics
+    public let isAceSpec: Bool         // rarity == "ACE SPEC …" — at most one per deck (§ deck order)
 
     public init(cardId: String, setId: String, setName: String, ptcgoCode: String?,
                 number: String, name: String, supertype: Supertype, equivalenceKey: String,
                 standardLegal: Bool, expandedLegal: Bool, regulationMark: String? = nil,
                 printedTotal: Int? = nil, imageSmall: String? = nil, imageLarge: String? = nil,
-                releaseDate: String? = nil, hp: String? = nil, subtypes: [String] = []) {
+                releaseDate: String? = nil, hp: String? = nil, subtypes: [String] = [],
+                evolvesFrom: String? = nil, isAceSpec: Bool = false) {
         self.cardId = cardId; self.setId = setId; self.setName = setName
         self.ptcgoCode = ptcgoCode; self.number = number; self.name = name
         self.supertype = supertype; self.subtypes = subtypes; self.equivalenceKey = equivalenceKey
@@ -45,6 +48,7 @@ public struct CatalogCard: Equatable {
         self.printedTotal = printedTotal; self.imageSmall = imageSmall; self.imageLarge = imageLarge
         self.hp = hp
         self.releaseDate = releaseDate
+        self.evolvesFrom = evolvesFrom; self.isAceSpec = isAceSpec
     }
 }
 

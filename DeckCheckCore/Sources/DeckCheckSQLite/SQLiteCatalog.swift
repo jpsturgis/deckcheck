@@ -76,6 +76,14 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching, CatalogSetBro
         query("c.equivalence_key = ?1 ORDER BY s.release_date DESC, c.number", [equivalenceKey])
     }
 
+    /// Same apostrophe-folding `likePerToken` uses for name search — an evolution
+    /// chain's `evolvesFrom` text and the ancestor's own `c.name` come from the same
+    /// TCGdex source but aren't guaranteed to be typed identically byte-for-byte.
+    public func cards(name: String) -> [CatalogCard] {
+        query("REPLACE(REPLACE(c.name, char(8217), ''), char(39), '')"
+              + " = REPLACE(REPLACE(?1, char(8217), ''), char(39), '') COLLATE NOCASE", [name])
+    }
+
     // MARK: CatalogSearching
 
     /// The shortest pattern the `trigram` tokenizer can match. A shorter token isn't an
@@ -283,12 +291,17 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching, CatalogSetBro
 
     // `hp` lives inside the per-card `attributes` JSON (no dedicated column) — pull just
     // that scalar out with json_extract so the recognizer can use it without
-    // transferring the whole blob or a catalog rebuild.
+    // transferring the whole blob or a catalog rebuild. `evolvesFrom` and the
+    // ACE SPEC rarity flag are pulled the same way, for deck-list evolution/ace-spec
+    // ordering (GapChecker) — appended rather than inserted so every existing column
+    // index in `row(_:)` stays put.
     private static let selectColumns = """
     SELECT c.card_id, c.set_id, s.name, s.ptcgo_code, c.number, c.name, c.supertype,
            c.equivalence_key, c.standard_legal, c.expanded_legal, c.regulation_mark,
            c.image_small, s.printed_total, c.image_large, s.release_date,
-           json_extract(c.attributes, '$.hp'), c.subtypes
+           json_extract(c.attributes, '$.hp'), c.subtypes,
+           json_extract(c.attributes, '$.evolvesFrom'),
+           CASE WHEN json_extract(c.attributes, '$.rarity') LIKE 'ACE SPEC%' THEN 1 ELSE 0 END
     """
 
     private static let selectPrefix = selectColumns + "\n"
@@ -351,7 +364,9 @@ public final class SQLiteCatalog: CatalogLookup, CatalogSearching, CatalogSetBro
             imageLarge: text(13),
             releaseDate: text(14),
             hp: text(15),
-            subtypes: stringArray(16)
+            subtypes: stringArray(16),
+            evolvesFrom: text(17),
+            isAceSpec: flag(18)
         )
     }
 }

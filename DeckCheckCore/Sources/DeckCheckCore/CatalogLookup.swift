@@ -16,6 +16,9 @@ public protocol CatalogLookup {
     func card(byId cardId: String) -> CatalogCard?
     /// Every printing in a functional-equivalence group (for the card detail view, #29).
     func cards(equivalenceKey: String) -> [CatalogCard]
+    /// Printings by exact (apostrophe- and case-insensitive) name — walks a Pokémon's
+    /// `evolvesFrom` chain for deck-list evolution ordering (`GapChecker`).
+    func cards(name: String) -> [CatalogCard]
     /// Every card in the snapshot — for pushing the slim resolution index into the
     /// user's sheet (in-browser gap-check). A protocol *requirement* (not
     /// just an extension) so a real backend's implementation is dynamically dispatched
