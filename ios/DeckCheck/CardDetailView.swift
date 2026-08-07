@@ -150,7 +150,8 @@ struct CardDetailView: View {
                 outbox.enqueue(OutboxOp(id: UUID().uuidString, op: .intake, card_id: newCard.cardId,
                                         name: newCard.name, set: newCard.setName, code: newCard.ptcgoCode ?? "",
                                         number: newCard.number, location: row.location,
-                                        equivalence_key: newCard.equivalenceKey))
+                                        equivalence_key: newCard.equivalenceKey,
+                                        norm_version: catalog.normVersion ?? ""))
             }
         }
         Task { await model.syncNow() }
@@ -193,7 +194,8 @@ struct CardDetailView: View {
                 outbox.enqueue(OutboxOp(id: UUID().uuidString, op: .intake, card_id: newCard.cardId,
                                         name: newCard.name, set: newCard.setName, code: newCard.ptcgoCode ?? "",
                                         number: newCard.number, location: row.location,
-                                        equivalence_key: newCard.equivalenceKey))
+                                        equivalence_key: newCard.equivalenceKey,
+                                        norm_version: catalog.normVersion ?? ""))
             }
         }
         Task { await model.syncNow() }
@@ -338,7 +340,8 @@ struct CardDetailView: View {
             op: delta > 0 ? .intake : .removal,
             card_id: cardId,
             name: name, set: set, code: code, number: number,
-            location: "", equivalence_key: equivalenceKey
+            location: "", equivalence_key: equivalenceKey,
+            norm_version: catalog.normVersion ?? ""
         ))
         Task { await model.syncNow() }
     }

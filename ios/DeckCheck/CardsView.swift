@@ -142,7 +142,8 @@ struct CardsView: View {
             card_id: card.cardId,
             name: card.name, set: card.setName, code: card.ptcgoCode ?? "",
             number: card.number, location: "",
-            equivalence_key: card.equivalenceKey
+            equivalence_key: card.equivalenceKey,
+            norm_version: catalog.normVersion ?? ""
         ))
         addingPromo = false
         Task { await model.syncNow() }
