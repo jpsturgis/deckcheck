@@ -231,4 +231,60 @@ final class GapCheckerTests: XCTestCase {
         XCTAssertFalse(std.entries.first!.ownedNoLegalPrinting)
         XCTAssertFalse(std.entries.first!.differentPrinting) // owns the exact listed printing
     }
+
+    // MARK: - deck order
+
+    /// Pokémon in evolution order, then Item → Tool → Supporter → Stadium, then
+    /// Special Energy — with the ace spec sorting first within its own Item tier.
+    func testDeckOrderSequencesByCategoryThenEvolution() {
+        let deck = """
+        1 Blastoise TST 3
+        1 Prime Catcher TST 4
+        1 Squirtle TST 1
+        1 Test Stadium TST 5
+        1 Wartortle TST 2
+        1 Reversal Energy PAR 192
+        1 Air Balloon SSH 213
+        1 Iono PAL 185
+        1 Energy Retrieval AOR 99
+        """
+        let r = GapChecker.check(decklist: deck, owned: [], catalog: catalog)
+        XCTAssertEqual(r.missing.map(\.name), [
+            "Squirtle", "Wartortle", "Blastoise",     // Pokémon, evolution order
+            "Prime Catcher", "Energy Retrieval",      // Item, ace spec first
+            "Air Balloon",                            // Tool
+            "Iono",                                   // Supporter
+            "Test Stadium",                           // Stadium
+            "Reversal Energy",                        // Special Energy
+        ])
+    }
+
+    /// Status still wins over the deck-order comparator — gap-first grouping isn't
+    /// disturbed by the new within-status ordering.
+    func testDeckOrderIsSecondaryToGapStatus() {
+        let deck = """
+        1 Blastoise TST 3
+        1 Squirtle TST 1
+        """
+        let owned = [OwnedCard(cardId: "ptcg:tst-1", equivalenceKey: "squirtle", qty: 1)] // Squirtle: have
+        let r = GapChecker.check(decklist: deck, owned: owned, catalog: catalog)
+        XCTAssertEqual(r.entries.map(\.status), [.missing, .have])
+        XCTAssertEqual(r.missing.map(\.name), ["Blastoise"])
+        XCTAssertEqual(r.have.map(\.name), ["Squirtle"])
+    }
+
+    /// A Stage 2 whose `evolvesFrom` chain is missing (a real gap in some
+    /// legacy-format printings) can't cluster with its family, but it still lands in
+    /// the Pokémon tier rather than crashing or sorting somewhere nonsensical.
+    func testEvolutionChainGapDoesNotBreakSorting() {
+        let deck = """
+        1 Legacy Stage 2 TST 9
+        1 Squirtle TST 1
+        1 Prime Catcher TST 4
+        """
+        let r = GapChecker.check(decklist: deck, owned: [], catalog: catalog)
+        // Both Pokémon sort ahead of the Trainer, regardless of their relative order.
+        XCTAssertEqual(Set(r.missing.prefix(2).map(\.name)), ["Legacy Stage 2", "Squirtle"])
+        XCTAssertEqual(r.missing.last?.name, "Prime Catcher")
+    }
 }
