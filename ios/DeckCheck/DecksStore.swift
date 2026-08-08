@@ -36,9 +36,12 @@ final class DecksStore: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private static let pendingKey = "decks.pendingBuilt"
+    private let fileURL: URL
 
     init() {
+        fileURL = Outbox.supportDir().appendingPathComponent("decks-cache.json")
         pendingBuilt = defaults.dictionary(forKey: Self.pendingKey) as? [String: Bool] ?? [:]
+        load()
     }
 
     /// Refresh from the Sheet's deck tabs, then recompute reservations against the
@@ -58,9 +61,18 @@ final class DecksStore: ObservableObject {
             revision += 1
             recompute(catalog)
             lastError = nil
+            save()
         } catch {
             lastError = "\(error)"
         }
+    }
+
+    /// Recompute reservations for whatever decks are currently loaded — used right
+    /// after launch to apply the catalog to the on-disk cache before any Sheet read
+    /// has landed, the same way `InventoryStore`'s catalog resolution runs against
+    /// its cache immediately.
+    func recomputeReservations(catalog: (any CatalogLookup)?) {
+        recompute(catalog)
     }
 
     /// Apply a built/not-built toggle immediately, recomputing reservations on the spot.
@@ -115,5 +127,24 @@ final class DecksStore: ObservableObject {
 
     private func savePending() {
         defaults.set(pendingBuilt, forKey: Self.pendingKey)
+    }
+
+    // MARK: persistence
+
+    /// Load the last-synced deck tabs from disk so they're available offline, the
+    /// same way `InventoryStore` loads its cache — instantly, not after a Sheet
+    /// round trip. Reservations are recomputed separately once the catalog is ready
+    /// (see `recomputeReservations`).
+    private func load() {
+        guard let data = try? Data(contentsOf: fileURL),
+              let cached = try? JSONDecoder().decode([DeckList].self, from: data) else { return }
+        decks = cached.map { $0.setting(isBuilt: pendingBuilt[$0.tabTitle] ?? $0.isBuilt) }
+        revision += 1
+    }
+
+    private func save() {
+        if let data = try? JSONEncoder().encode(decks) {
+            try? data.write(to: fileURL, options: .atomic)
+        }
     }
 }
