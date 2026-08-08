@@ -18,6 +18,10 @@ final class AppModel: ObservableObject {
     init() {
         browserGapCheck = BrowserGapCheckManager(sheets: sheets)
         migrator = InventoryMigrator(sheets: sheets)
+        // Both `catalog` and `decks` load their on-disk state synchronously above, so
+        // reservations for the cached decks can be ready before the first render —
+        // no need to wait on a Sheet read.
+        decks.recomputeReservations(catalog: catalog.lookup)
     }
 
     /// Whether writes/reads will actually go somewhere — i.e. the Sheet is connected.

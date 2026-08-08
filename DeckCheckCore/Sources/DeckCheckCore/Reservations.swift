@@ -11,7 +11,7 @@ import Foundation
 // so a deck line reserves exactly the functional group it would satisfy.
 
 /// One deck: its display name and the raw TCG Live decklist text (from its Sheet tab).
-public struct DeckList: Equatable {
+public struct DeckList: Equatable, Codable {
     public let name: String
     public let text: String
     /// The tab this came from, e.g. "Deck: Charizard ex". Kept verbatim so writing back
