@@ -75,16 +75,25 @@ struct CardsView: View {
                         .toggleStyle(.button)
                         .buttonStyle(.bordered)
                         if scope == .owned {
+                            // Free (available > 0) and Short (reserved > owned) can never
+                            // both hold for the same card, so selecting one clears the
+                            // other rather than always showing an empty list.
                             Toggle(isOn: $freeOnly) {   // free-only is meaningless for a set
                                 Label("Free", systemImage: freeOnly ? "checkmark.circle.fill" : "circle")
                             }
                             .toggleStyle(.button)
                             .buttonStyle(.bordered)
+                            .onChange(of: freeOnly) { _, newValue in
+                                if newValue { overSubscribedOnly = false }
+                            }
                             Toggle(isOn: $overSubscribedOnly) {
                                 Label("Short", systemImage: overSubscribedOnly ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
                             }
                             .toggleStyle(.button)
                             .buttonStyle(.bordered)
+                            .onChange(of: overSubscribedOnly) { _, newValue in
+                                if newValue { freeOnly = false }
+                            }
                         }
                         Spacer()
                     }
