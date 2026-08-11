@@ -31,6 +31,8 @@ struct CardsView: View {
     @AppStorage("standardOnly") private var standardOnly = false
     /// Show only cards with a free (unreserved) copy — owned minus what decks use.
     @AppStorage("freeOnly") private var freeOnly = false
+    /// Show only cards where built decks reserve more copies than you own.
+    @AppStorage("overSubscribedOnly") private var overSubscribedOnly = false
     private var legalityFormat: LegalityFormat? { standardOnly ? .standard : nil }
 
     private var items: [CardListItem] {
@@ -75,6 +77,11 @@ struct CardsView: View {
                         if scope == .owned {
                             Toggle(isOn: $freeOnly) {   // free-only is meaningless for a set
                                 Label("Free only", systemImage: freeOnly ? "checkmark.circle.fill" : "circle")
+                            }
+                            .toggleStyle(.button)
+                            .buttonStyle(.bordered)
+                            Toggle(isOn: $overSubscribedOnly) {
+                                Label("Over-subscribed", systemImage: overSubscribedOnly ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
                             }
                             .toggleStyle(.button)
                             .buttonStyle(.bordered)
@@ -260,8 +267,11 @@ struct CardsView: View {
         case .owned:
             let printings = items.reduce(0) { $0 + $1.ownedPrintings.count }
             let reserved = items.reduce(0) { $0 + $1.reserved }
-            let base = "\(cards) cards · \(items.count) unique · \(printings) printings"
-            return reserved > 0 ? base + " · \(reserved) in use" : base
+            let overSubscribed = items.filter(\.isOverSubscribed).count
+            var base = "\(cards) cards · \(items.count) unique · \(printings) printings"
+            if reserved > 0 { base += " · \(reserved) in use" }
+            if overSubscribed > 0 { base += " · \(overSubscribed) over-subscribed" }
+            return base
         case .all:
             return "\(items.count) result\(items.count == 1 ? "" : "s")"
         case .sets:
@@ -306,6 +316,7 @@ struct CardsView: View {
             )
         }
         .filter { !freeOnly || $0.available > 0 }
+        .filter { !overSubscribedOnly || $0.isOverSubscribed }
     }
 
     /// A manual promo (or an imageless printing) has no art of its own — borrow the
@@ -379,6 +390,9 @@ struct CardListItem: Identifiable {
     /// Resolved when the item is built, so rendering a row costs no catalog reads.
     var thumbnailURL: String?
     var available: Int { max(0, ownedCount - reserved) }
+    /// True when built decks reserve more copies than you own.
+    var isOverSubscribed: Bool { reserved > ownedCount }
+    var shortfall: Int { max(0, reserved - ownedCount) }
 }
 
 private struct CardRow: View {
@@ -399,9 +413,14 @@ private struct CardRow: View {
                 Text("\(item.printingCount) printing\(item.printingCount == 1 ? "" : "s")")
                     .font(.caption2).foregroundStyle(.secondary)
                 if item.reserved > 0 {
-                    Label("\(item.reserved) in use · \(item.available) free", systemImage: "tray.full")
-                        .font(.caption2)
-                        .foregroundStyle(item.available > 0 ? Color.secondary : Color.orange)
+                    Label(
+                        item.isOverSubscribed
+                            ? "\(item.reserved) in use · short \(item.shortfall)"
+                            : "\(item.reserved) in use · \(item.available) free",
+                        systemImage: item.isOverSubscribed ? "exclamationmark.triangle.fill" : "tray.full"
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(item.isOverSubscribed ? Color.red : (item.available > 0 ? Color.secondary : Color.orange))
                 }
                 ForEach(item.ownedPrintings) { p in
                     Text(p.label).font(.caption2).foregroundStyle(.secondary)
