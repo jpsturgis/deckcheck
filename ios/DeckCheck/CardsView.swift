@@ -70,18 +70,18 @@ struct CardsView: View {
                     // reachable while the search field is active.
                     HStack {
                         Toggle(isOn: $standardOnly) {
-                            Label("Standard only", systemImage: standardOnly ? "checkmark.seal.fill" : "seal")
+                            Label("Standard", systemImage: standardOnly ? "checkmark.seal.fill" : "seal")
                         }
                         .toggleStyle(.button)
                         .buttonStyle(.bordered)
                         if scope == .owned {
                             Toggle(isOn: $freeOnly) {   // free-only is meaningless for a set
-                                Label("Free only", systemImage: freeOnly ? "checkmark.circle.fill" : "circle")
+                                Label("Free", systemImage: freeOnly ? "checkmark.circle.fill" : "circle")
                             }
                             .toggleStyle(.button)
                             .buttonStyle(.bordered)
                             Toggle(isOn: $overSubscribedOnly) {
-                                Label("Over-subscribed", systemImage: overSubscribedOnly ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
+                                Label("Short", systemImage: overSubscribedOnly ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
                             }
                             .toggleStyle(.button)
                             .buttonStyle(.bordered)
@@ -270,7 +270,7 @@ struct CardsView: View {
             let overSubscribed = items.filter(\.isOverSubscribed).count
             var base = "\(cards) cards · \(items.count) unique · \(printings) printings"
             if reserved > 0 { base += " · \(reserved) in use" }
-            if overSubscribed > 0 { base += " · \(overSubscribed) over-subscribed" }
+            if overSubscribed > 0 { base += " · \(overSubscribed) short" }
             return base
         case .all:
             return "\(items.count) result\(items.count == 1 ? "" : "s")"
